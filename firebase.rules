@@ -7,25 +7,69 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email in [
-        "brandtnet123@gmail.com",
-        "namoeller16@gmail.com",
-        "brandtnet1@yahoo.com"
-      ];
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function hasOnly(keys) {
+      return request.resource.data.keys().hasOnly(keys);
+    }
+
+    function isShortText(field, max) {
+      return request.resource.data[field] is string
+        && request.resource.data[field].size() > 0
+        && request.resource.data[field].size() <= max;
+    }
+
+    function isOptionalShortText(field, max) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is string && request.resource.data[field].size() <= max);
+    }
+
+    function hasServerCreateTime() {
+      return request.resource.data.createdAt == request.time;
+    }
+
+    function validRsvp() {
+      return hasOnly(["name", "email", "attending", "partySize", "meal", "notes", "createdAt"])
+        && isShortText("name", 120)
+        && isShortText("email", 180)
+        && request.resource.data.attending in ["yes", "no"]
+        && request.resource.data.partySize is int
+        && request.resource.data.partySize >= 1
+        && request.resource.data.partySize <= 8
+        && isOptionalShortText("meal", 120)
+        && isOptionalShortText("notes", 1000)
+        && hasServerCreateTime();
+    }
+
+    function validGuestbook() {
+      return hasOnly(["name", "message", "createdAt"])
+        && isShortText("name", 120)
+        && isShortText("message", 1200)
+        && hasServerCreateTime();
+    }
+
+    function validSaveTheDate() {
+      return hasOnly(["name", "email", "phone", "mailingAddress", "createdAt"])
+        && isShortText("name", 120)
+        && isShortText("email", 180)
+        && isOptionalShortText("phone", 40)
+        && isOptionalShortText("mailingAddress", 500)
+        && hasServerCreateTime();
     }
 
     match /rsvps/{id} {
-      allow create: if true;
+      allow create: if validRsvp();
       allow read, update, delete: if isAdmin();
     }
 
     match /guestbook/{id} {
-      allow create: if true;
+      allow create: if validGuestbook();
       allow read, update, delete: if isAdmin();
     }
 
     match /saveTheDates/{id} {
-      allow create: if true;
+      allow create: if validSaveTheDate();
       allow read, update, delete: if isAdmin();
     }
   }

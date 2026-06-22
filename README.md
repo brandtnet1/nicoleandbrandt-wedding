@@ -29,7 +29,7 @@ Fill `.env.local` with your Firebase web app values.
 2. Add a Web App and copy the config values into `.env.local`.
 3. Enable Authentication, then enable Google as a sign-in provider.
 4. Create a Firestore database.
-5. Replace the placeholder admin emails in `firebase.rules`.
+5. Set the `admin` custom claim on admin users.
 6. Deploy rules with the Firebase CLI:
 
 ```bash
@@ -37,6 +37,14 @@ firebase deploy --only firestore:rules
 ```
 
 The app writes to these collections: `rsvps`, `saveTheDates`, and `guestbook`.
+
+Firestore admin access is controlled by a private Firebase Auth custom claim instead of public email addresses in the repo. Set it from a trusted Admin SDK environment:
+
+```js
+await getAuth().setCustomUserClaims(uid, { admin: true });
+```
+
+For a public site, enable Firebase App Check for the web app in the Firebase Console and enforce it for Firestore after confirming RSVP, save-the-date, and guestbook submissions work in production.
 
 ## GitHub Pages
 
