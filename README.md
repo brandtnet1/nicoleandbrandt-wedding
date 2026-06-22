@@ -40,9 +40,19 @@ The app writes to these collections: `rsvps`, `saveTheDates`, and `guestbook`.
 
 Firestore admin access is controlled by a private Firebase Auth custom claim instead of public email addresses in the repo. Set it from a trusted Admin SDK environment:
 
-```js
-await getAuth().setCustomUserClaims(uid, { admin: true });
+```bash
+npm run set-admins
 ```
+
+To use the script:
+
+1. In Firebase Console, open Project settings > Service accounts.
+2. Generate a new private key.
+3. Put the downloaded JSON at `service-account.json` in this project folder, or set `FIREBASE_SERVICE_ACCOUNT_PATH`.
+4. Make sure each admin email in `.env.local` has signed in at least once.
+5. Run `npm run set-admins`.
+
+The service account file is ignored by git. Do not commit it.
 
 For a public site, enable Firebase App Check for the web app in the Firebase Console and enforce it for Firestore after confirming RSVP, save-the-date, and guestbook submissions work in production.
 
