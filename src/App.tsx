@@ -24,7 +24,6 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FlightIcon from '@mui/icons-material/Flight';
@@ -66,7 +65,8 @@ type Invitation = {
   partyName: string;
   guests: InvitationGuest[];
 };
-type GuestResponse = Record<string, { name: string; attending: 'yes' | 'no'; meal: string }>;
+type Attendance = 'yes' | 'no';
+type GuestResponse = Record<string, { name: string; wedding: Attendance; welcomeEvent: Attendance; meal: string }>;
 
 const navItems = [
   { label: 'Home', path: '/' },
@@ -129,7 +129,6 @@ function Nav() {
   return (
     <AppBar className="glass-nav" color="inherit" elevation={0} position="sticky">
       <Toolbar sx={{ gap: 2 }}>
-        <AutoAwesomeIcon className="spark-icon" color="secondary" />
         <Typography component={RouterLink} to="/" variant="h6" sx={{ color: 'inherit', flexGrow: 1, fontWeight: 800, textDecoration: 'none' }}>
           {wedding.couple}
         </Typography>
@@ -366,6 +365,7 @@ function RsvpForm() {
   const [searchName, setSearchName] = useState('');
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [responses, setResponses] = useState<GuestResponse>({});
   const message = firebaseMessage();
@@ -397,7 +397,7 @@ function RsvpForm() {
       setInvitation(nextInvitation);
       setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => [
         guest.id,
-        { name: guest.name, attending: 'yes', meal: '' },
+        { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
       ])));
       setSearchStatus('loaded');
     } catch {
@@ -414,6 +414,7 @@ function RsvpForm() {
         invitationId: invitation.id,
         invitationName: invitation.partyName,
         contactEmail: email,
+        contactPhone: phone,
         responses: Object.values(responses),
         notes,
       });
@@ -443,29 +444,51 @@ function RsvpForm() {
           <Box component="form" onSubmit={submit}>
             <Stack spacing={2.5}>
               <Alert severity="info">Invitation found for {invitation.partyName}. Please respond for each guest below.</Alert>
-              <TextField required fullWidth type="email" label="Contact email" value={email} onChange={(event) => setEmail(event.target.value)} />
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField required fullWidth type="email" label="Contact email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField fullWidth label="Phone for text updates" value={phone} onChange={(event) => setPhone(event.target.value)} />
+                </Grid>
+              </Grid>
               {invitation.guests.map((guest) => (
                 <Paper key={guest.id} variant="outlined" sx={{ p: 2 }}>
                   <Grid container spacing={2} sx={{ alignItems: 'center' }}>
-                    <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <Typography variant="h6">{guest.name}</Typography>
                     </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <TextField
                         select
                         fullWidth
-                        label="RSVP"
-                        value={responses[guest.id]?.attending ?? 'yes'}
+                        label="Wedding"
+                        value={responses[guest.id]?.wedding ?? 'yes'}
                         onChange={(event) => setResponses({
                           ...responses,
-                          [guest.id]: { ...responses[guest.id], name: guest.name, attending: event.target.value as 'yes' | 'no' },
+                          [guest.id]: { ...responses[guest.id], name: guest.name, wedding: event.target.value as Attendance },
                         })}
                       >
                         <MenuItem value="yes">Attending</MenuItem>
                         <MenuItem value="no">Not attending</MenuItem>
                       </TextField>
                     </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, md: 3 }}>
+                      <TextField
+                        select
+                        fullWidth
+                        label="Welcome event"
+                        value={responses[guest.id]?.welcomeEvent ?? 'yes'}
+                        onChange={(event) => setResponses({
+                          ...responses,
+                          [guest.id]: { ...responses[guest.id], name: guest.name, welcomeEvent: event.target.value as Attendance },
+                        })}
+                      >
+                        <MenuItem value="yes">Attending</MenuItem>
+                        <MenuItem value="no">Not attending</MenuItem>
+                      </TextField>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <TextField
                         fullWidth
                         label="Meal preference"

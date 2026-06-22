@@ -30,10 +30,11 @@ service cloud.firestore {
     }
 
     function validRsvp() {
-      return hasOnly(["invitationId", "invitationName", "contactEmail", "responses", "notes", "createdAt"])
+      return hasOnly(["invitationId", "invitationName", "contactEmail", "contactPhone", "responses", "notes", "createdAt"])
         && isShortText("invitationId", 120)
         && isShortText("invitationName", 240)
         && isShortText("contactEmail", 180)
+        && isOptionalShortText("contactPhone", 40)
         && request.resource.data.responses is list
         && request.resource.data.responses.size() >= 1
         && request.resource.data.responses.size() <= 20
