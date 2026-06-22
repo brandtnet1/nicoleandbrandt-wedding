@@ -49,15 +49,6 @@ service cloud.firestore {
         && hasServerCreateTime();
     }
 
-    function validSaveTheDate() {
-      return hasOnly(["name", "email", "phone", "mailingAddress", "createdAt"])
-        && isShortText("name", 120)
-        && isShortText("email", 180)
-        && isOptionalShortText("phone", 40)
-        && isOptionalShortText("mailingAddress", 500)
-        && hasServerCreateTime();
-    }
-
     match /rsvps/{id} {
       allow create: if validRsvp();
       allow read, update, delete: if isAdmin();
@@ -65,11 +56,6 @@ service cloud.firestore {
 
     match /guestbook/{id} {
       allow create: if validGuestbook();
-      allow read, update, delete: if isAdmin();
-    }
-
-    match /saveTheDates/{id} {
-      allow create: if validSaveTheDate();
       allow read, update, delete: if isAdmin();
     }
   }

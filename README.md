@@ -6,7 +6,6 @@ Full-stack wedding site built as a static React app for GitHub Pages with Fireba
 
 - Responsive wedding homepage with event details and schedule
 - RSVP form stored in Firestore
-- Save-the-date contact collection
 - Registry links
 - Travel, FAQ, and weekend information
 - Guestbook form stored in Firestore
@@ -36,7 +35,7 @@ Fill `.env.local` with your Firebase web app values.
 firebase deploy --only firestore:rules
 ```
 
-The app writes to these collections: `rsvps`, `saveTheDates`, and `guestbook`.
+The app writes to these collections: `rsvps` and `guestbook`.
 
 Firestore admin access is controlled by a private Firebase Auth custom claim instead of public email addresses in the repo. Set it from a trusted Admin SDK environment:
 
@@ -54,7 +53,7 @@ To use the script:
 
 The service account file is ignored by git. Do not commit it.
 
-For a public site, enable Firebase App Check for the web app in the Firebase Console and enforce it for Firestore after confirming RSVP, save-the-date, and guestbook submissions work in production.
+For a public site, enable Firebase App Check for the web app in the Firebase Console and enforce it for Firestore after confirming RSVP and guestbook submissions work in production.
 
 ## GitHub Pages
 

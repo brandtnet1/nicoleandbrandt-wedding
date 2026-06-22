@@ -287,9 +287,6 @@ function RsvpPage() {
       <Section title="Your Response">
         <RsvpForm />
       </Section>
-      <Section title="Save The Date" tone="cream">
-        <SaveTheDateForm />
-      </Section>
     </>
   );
 }
@@ -328,41 +325,6 @@ function RsvpForm() {
         <Button type="submit" variant="contained" size="large" disabled={status === 'saving'} endIcon={<SendIcon />}>
           {status === 'saving' ? 'Submitting' : 'Submit RSVP'}
         </Button>
-      </Stack>
-    </Paper>
-  );
-}
-
-function SaveTheDateForm() {
-  const [status, setStatus] = useState<Status>('idle');
-  const [form, setForm] = useState({ name: '', email: '', phone: '', mailingAddress: '' });
-  const message = firebaseMessage();
-
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setStatus('saving');
-    try {
-      await save('saveTheDates', form);
-      setStatus('saved');
-      setForm({ name: '', email: '', phone: '', mailingAddress: '' });
-    } catch {
-      setStatus('error');
-    }
-  };
-
-  return (
-    <Paper component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 860, mx: 'auto' }}>
-      <Stack spacing={2}>
-        {message && <Alert severity="info">{message}</Alert>}
-        {status === 'saved' && <Alert severity="success">Contact details saved.</Alert>}
-        {status === 'error' && <Alert severity="error">Unable to submit right now.</Alert>}
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 6 }}><TextField required fullWidth label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Grid>
-          <Grid size={{ xs: 12, md: 6 }}><TextField required fullWidth type="email" label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Grid>
-          <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Grid>
-          <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Mailing address" value={form.mailingAddress} onChange={(e) => setForm({ ...form, mailingAddress: e.target.value })} /></Grid>
-        </Grid>
-        <Button type="submit" variant="contained" disabled={status === 'saving'} endIcon={<SendIcon />}>Save contact info</Button>
       </Stack>
     </Paper>
   );
@@ -445,7 +407,6 @@ function AdminPage() {
   const collectionLabel = useMemo(() => ({
     rsvps: 'RSVPs',
     guestbook: 'Guestbook',
-    saveTheDates: 'Save-the-dates',
   })[activeCollection] ?? activeCollection, [activeCollection]);
 
   useEffect(() => {
@@ -492,7 +453,7 @@ function AdminPage() {
   return (
     <>
       <PageHeader title="Admin" eyebrow="Private dashboard">
-        <Typography variant="h6">Review RSVP, save-the-date, and guestbook submissions.</Typography>
+        <Typography variant="h6">Review RSVP and guestbook submissions.</Typography>
       </PageHeader>
       <Section title="Submissions">
         <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1120, mx: 'auto' }}>
@@ -518,7 +479,6 @@ function AdminPage() {
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                       <Button variant={activeCollection === 'rsvps' ? 'contained' : 'outlined'} onClick={() => load('rsvps')}>Load RSVPs</Button>
                       <Button variant={activeCollection === 'guestbook' ? 'contained' : 'outlined'} onClick={() => load('guestbook')}>Load guestbook</Button>
-                      <Button variant={activeCollection === 'saveTheDates' ? 'contained' : 'outlined'} onClick={() => load('saveTheDates')}>Load save-the-dates</Button>
                     </Stack>
                     {loadStatus === 'loading' && <Alert severity="info">Loading {collectionLabel}...</Alert>}
                     {loadStatus === 'loaded' && rows.length === 0 && <Alert severity="info">No {collectionLabel} records found.</Alert>}
