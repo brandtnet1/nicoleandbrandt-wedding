@@ -63,7 +63,6 @@ const navItems = [
   { label: 'RSVP', path: '/rsvp' },
   { label: 'Registry', path: '/registry' },
   { label: 'Guestbook', path: '/guestbook' },
-  { label: 'Admin', path: '/admin' },
 ];
 
 function firebaseMessage() {
