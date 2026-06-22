@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   Alert,
   AppBar,
@@ -65,6 +65,8 @@ const navItems = [
   { label: 'Guestbook', path: '/guestbook' },
 ];
 
+const weddingDate = new Date('2026-11-28T16:00:00-05:00');
+
 function firebaseMessage() {
   return firebaseEnabled
     ? null
@@ -92,7 +94,7 @@ function authErrorMessage(error: unknown) {
 
 function App() {
   return (
-    <Box>
+    <Box className="app-shell">
       <Nav />
       <Routes>
         <Route path="/" element={<Home />} />
@@ -111,9 +113,9 @@ function Nav() {
   const location = useLocation();
 
   return (
-    <AppBar color="inherit" elevation={0} position="sticky" sx={{ borderBottom: '1px solid #e5ded2' }}>
+    <AppBar className="glass-nav" color="inherit" elevation={0} position="sticky">
       <Toolbar sx={{ gap: 2 }}>
-        <AutoAwesomeIcon color="secondary" />
+        <AutoAwesomeIcon className="spark-icon" color="secondary" />
         <Typography component={RouterLink} to="/" variant="h6" sx={{ color: 'inherit', flexGrow: 1, fontWeight: 800, textDecoration: 'none' }}>
           {wedding.couple}
         </Typography>
@@ -164,11 +166,15 @@ function Home() {
           ))}
         </Grid>
       </Section>
+      <Section title="Countdown" tone="ember">
+        <Countdown />
+      </Section>
       <Section title="Weekend Preview" tone="cream">
-        <Paper sx={{ maxWidth: 860, mx: 'auto', overflow: 'hidden' }}>
+        <Paper className="timeline-panel" sx={{ maxWidth: 860, mx: 'auto', overflow: 'hidden' }}>
           {wedding.schedule.map((item, index) => (
             <Box
               key={item.title}
+              className="timeline-row"
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', sm: '132px 1fr' },
@@ -222,30 +228,37 @@ function Hero() {
   return (
     <Box
       component="header"
+      className="hero-stage"
       sx={{
         minHeight: { xs: '78svh', md: '84svh' },
         display: 'flex',
         alignItems: 'end',
         color: 'white',
         background:
-          'linear-gradient(180deg, rgba(34, 27, 21, .16), rgba(34, 27, 21, .78)), url(https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?auto=format&fit=crop&w=1800&q=80)',
+          'linear-gradient(180deg, rgba(34, 27, 21, .08), rgba(34, 27, 21, .82)), url(https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?auto=format&fit=crop&w=1800&q=80)',
         backgroundPosition: 'center',
         backgroundSize: 'cover',
       }}
     >
+      <Box className="hero-ambient" aria-hidden="true" />
+      <Box className="fall-leaves" aria-hidden="true">
+        {Array.from({ length: 14 }, (_, index) => (
+          <span key={index} style={{ '--i': index } as CSSProperties} />
+        ))}
+      </Box>
       <Container sx={{ pb: { xs: 7, md: 9 } }}>
-        <Stack spacing={2.5} sx={{ maxWidth: 760 }}>
-          <Chip label={wedding.date} sx={{ alignSelf: 'start', bgcolor: '#fff8ed', color: '#6f321f', fontWeight: 800 }} />
-          <Typography variant="h1" sx={{ fontSize: { xs: 56, md: 104 }, lineHeight: 0.92 }}>
+        <Stack className="hero-copy" spacing={2.5} sx={{ maxWidth: 760 }}>
+          <Chip className="date-chip" label={wedding.date} sx={{ alignSelf: 'start', bgcolor: '#fff8ed', color: '#6f321f', fontWeight: 800 }} />
+          <Typography className="hero-title" variant="h1" sx={{ fontSize: { xs: 56, md: 104 }, lineHeight: 0.92 }}>
             {wedding.couple}
           </Typography>
           <Typography variant="h5" sx={{ maxWidth: 660 }}>
             A fall wedding at {wedding.venue} in {wedding.city}.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <Button component={RouterLink} to="/rsvp" variant="contained" size="large" endIcon={<SendIcon />}>RSVP</Button>
-            <Button component={RouterLink} to="/registry" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>Registry</Button>
-            <Button component={RouterLink} to="/guestbook" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>Guestbook</Button>
+            <Button className="magnetic-button" component={RouterLink} to="/rsvp" variant="contained" size="large" endIcon={<SendIcon />}>RSVP</Button>
+            <Button className="ghost-button" component={RouterLink} to="/registry" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>Registry</Button>
+            <Button className="ghost-button" component={RouterLink} to="/guestbook" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>Guestbook</Button>
           </Stack>
         </Stack>
       </Container>
@@ -253,11 +266,11 @@ function Hero() {
   );
 }
 
-function Section({ title, children, tone }: { title: string; children: React.ReactNode; tone?: 'cream' }) {
+function Section({ title, children, tone }: { title: string; children: React.ReactNode; tone?: 'cream' | 'ember' }) {
   return (
-    <Box component="section" sx={{ py: { xs: 7, md: 10 }, bgcolor: tone === 'cream' ? '#f5efe4' : 'transparent' }}>
+    <Box className={`section-shell ${tone ? `section-${tone}` : ''}`} component="section" sx={{ py: { xs: 7, md: 10 } }}>
       <Container>
-        <Typography variant="h2" sx={{ mb: 4, fontSize: { xs: 40, md: 58 } }}>
+        <Typography className="section-title" variant="h2" sx={{ mb: 4, fontSize: { xs: 40, md: 58 } }}>
           {title}
         </Typography>
         {children}
@@ -268,7 +281,7 @@ function Section({ title, children, tone }: { title: string; children: React.Rea
 
 function PageHeader({ title, eyebrow, children }: { title: string; eyebrow: string; children?: React.ReactNode }) {
   return (
-    <Box sx={{ py: { xs: 7, md: 9 }, bgcolor: '#30261f', color: 'white' }}>
+    <Box className="page-header" sx={{ py: { xs: 7, md: 9 }, color: 'white' }}>
       <Container>
         <Stack spacing={1.5} sx={{ alignItems: 'center', maxWidth: 760, mx: 'auto', textAlign: 'center' }}>
           <Typography variant="overline" color="#e7b66d">{eyebrow}</Typography>
@@ -282,10 +295,41 @@ function PageHeader({ title, eyebrow, children }: { title: string; eyebrow: stri
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <Paper sx={{ p: 3, height: '100%' }}>
+    <Paper className="lift-card" sx={{ p: 3, height: '100%' }}>
       <Typography variant="overline" color="secondary">{label}</Typography>
       <Typography variant="h5">{value}</Typography>
     </Paper>
+  );
+}
+
+function Countdown() {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const remaining = Math.max(0, weddingDate.getTime() - now);
+  const days = Math.floor(remaining / 86_400_000);
+  const hours = Math.floor((remaining / 3_600_000) % 24);
+  const minutes = Math.floor((remaining / 60_000) % 60);
+  const seconds = Math.floor((remaining / 1_000) % 60);
+
+  return (
+    <Box className="countdown-grid">
+      {[
+        ['Days', days],
+        ['Hours', hours],
+        ['Minutes', minutes],
+        ['Seconds', seconds],
+      ].map(([label, value]) => (
+        <Paper className="countdown-tile" key={label}>
+          <Typography variant="h2">{String(value).padStart(2, '0')}</Typography>
+          <Typography variant="overline">{label}</Typography>
+        </Paper>
+      ))}
+    </Box>
   );
 }
 
@@ -320,7 +364,7 @@ function RsvpForm() {
   };
 
   return (
-    <Paper component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 860, mx: 'auto' }}>
+    <Paper className="form-panel" component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 860, mx: 'auto' }}>
       <Stack spacing={2}>
         {message && <Alert severity="info">{message}</Alert>}
         {status === 'saved' && <Alert severity="success">RSVP received.</Alert>}
@@ -351,7 +395,7 @@ function RegistryPage() {
         <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
           {wedding.registry.map((item) => (
             <Grid key={item.name} size={{ xs: 12, md: 4 }}>
-              <Paper sx={{ p: 3, height: '100%' }}>
+              <Paper className="lift-card registry-card" sx={{ p: 3, height: '100%' }}>
                 <Stack spacing={2}>
                   <CelebrationIcon color="secondary" />
                   <Typography variant="h5">{item.name}</Typography>
@@ -392,7 +436,7 @@ function GuestbookPage() {
         <Typography variant="h6">Share a memory, a toast, or a message for the wedding weekend.</Typography>
       </PageHeader>
       <Section title="Write A Message">
-        <Paper component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 820, mx: 'auto' }}>
+        <Paper className="form-panel" component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 820, mx: 'auto' }}>
           <Stack spacing={2}>
             {message && <Alert severity="info">{message}</Alert>}
             {status === 'saved' && <Alert severity="success">Message posted.</Alert>}
@@ -467,7 +511,7 @@ function AdminPage() {
         <Typography variant="h6">Review RSVP and guestbook submissions.</Typography>
       </PageHeader>
       <Section title="Submissions">
-        <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1120, mx: 'auto' }}>
+        <Paper className="form-panel" sx={{ p: { xs: 2, md: 4 }, maxWidth: 1120, mx: 'auto' }}>
           <Stack spacing={2.5}>
             {firebaseMessage() && <Alert severity="info">{firebaseMessage()}</Alert>}
             {error && <Alert severity="error">{error}</Alert>}
@@ -531,7 +575,7 @@ function AdminTable({ rows }: { rows: GuestRecord[] }) {
 
 function Footer() {
   return (
-    <Box component="footer" sx={{ py: 5, bgcolor: '#30261f', color: 'white' }}>
+    <Box className="site-footer" component="footer" sx={{ py: 5, color: 'white' }}>
       <Container>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'space-between' }}>
           <Typography>{wedding.couple} - {wedding.date}</Typography>
