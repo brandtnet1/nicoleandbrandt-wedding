@@ -22,6 +22,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -49,6 +55,14 @@ pre {
 .app-shell {
   position: relative;
   isolation: isolate;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-main {
+  flex: 1 0 auto;
 }
 
 .app-shell::before {
@@ -312,6 +326,7 @@ pre {
 }
 
 .site-footer {
+  flex-shrink: 0;
   background:
     radial-gradient(circle at 18% 24%, rgba(231, 182, 109, 0.18), transparent 18rem),
     linear-gradient(135deg, #30261f, #1f1b17);

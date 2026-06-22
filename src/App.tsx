@@ -8,7 +8,6 @@ import {
   Container,
   Grid,
   IconButton,
-  Link as MuiLink,
   Menu,
   MenuItem,
   Paper,
@@ -30,7 +29,6 @@ import FlightIcon from '@mui/icons-material/Flight';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import SendIcon from '@mui/icons-material/Send';
 import {
@@ -110,13 +108,15 @@ function App() {
   return (
     <Box className="app-shell">
       <Nav />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/rsvp" element={<RsvpPage />} />
-        <Route path="/registry" element={<RegistryPage />} />
-        <Route path="/guestbook" element={<GuestbookPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-      </Routes>
+      <Box component="main" className="page-main">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/rsvp" element={<RsvpPage />} />
+          <Route path="/registry" element={<RegistryPage />} />
+          <Route path="/guestbook" element={<GuestbookPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+        </Routes>
+      </Box>
       <Footer />
     </Box>
   );
@@ -518,25 +518,18 @@ function RegistryPage() {
   return (
     <>
       <PageHeader title="Registry" eyebrow="Thank you">
-        <Typography variant="h6">Your presence is the gift. For anyone who has asked, our registries are linked below.</Typography>
+        <Typography variant="h6">Registry details are still being finalized.</Typography>
       </PageHeader>
-      <Section title="Gift Registries">
-        <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
-          {wedding.registry.map((item) => (
-            <Grid key={item.name} size={{ xs: 12, md: 4 }}>
-              <Paper className="lift-card registry-card" sx={{ p: 3, height: '100%' }}>
-                <Stack spacing={2}>
-                  <CelebrationIcon color="secondary" />
-                  <Typography variant="h5">{item.name}</Typography>
-                  <Typography color="text.secondary">{item.description}</Typography>
-                  <Button component={MuiLink} href={item.url} target="_blank" rel="noreferrer" variant="outlined" endIcon={<OpenInNewIcon />}>
-                    Open registry
-                  </Button>
-                </Stack>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
+      <Section title="Registry TBD">
+        <Paper className="form-panel" sx={{ p: { xs: 3, md: 5 }, maxWidth: 760, mx: 'auto', textAlign: 'center' }}>
+          <Stack spacing={2} sx={{ alignItems: 'center' }}>
+            <CelebrationIcon color="secondary" sx={{ fontSize: 44 }} />
+            <Typography variant="h4">Coming soon</Typography>
+            <Typography color="text.secondary" sx={{ maxWidth: 560 }}>
+              We will add registry details here once they are ready. Thank you for checking.
+            </Typography>
+          </Stack>
+        </Paper>
       </Section>
     </>
   );
