@@ -3,7 +3,7 @@ export const wedding = {
   date: 'Saturday, November 28, 2026',
   ceremonyTime: 'TBD',
   city: 'Woodstock, GA',
-  venue: 'Rockeys Lake Estate',
+  venue: "Rocky's Lake Estate",
   venueAddress: '2700 Cox Rd, Woodstock, GA 30188',
   rsvpDeadline: 'TBD',
   email: '',
