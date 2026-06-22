@@ -184,7 +184,7 @@ function Home() {
             <Paper sx={{ p: 3, height: '100%' }}>
               <FlightIcon color="primary" />
               <Typography variant="h5" sx={{ mt: 1 }}>Getting there</Typography>
-              <Typography color="text.secondary">Fly into ATL. The venue is about 45 minutes north of the airport outside peak traffic.</Typography>
+              <Typography color="text.secondary">Fly into ATL. The venue is north of Atlanta in Woodstock, so guests should plan for extra travel time from the airport, especially with holiday weekend traffic.</Typography>
             </Paper>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
