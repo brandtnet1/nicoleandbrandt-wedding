@@ -639,7 +639,7 @@ function TravelPage() {
                 <Typography variant="h4">{wedding.venue}</Typography>
                 <Typography color="text.secondary">{wedding.venueAddress}</Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <Button component="a" href={googleMapsUrl} target="_blank" rel="noreferrer" variant="contained">Google Maps</Button>
+                  <Button component="a" href={googleMapsUrl} target="_blank" rel="noreferrer" variant="outlined">Google Maps</Button>
                   <Button component="a" href={appleMapsUrl} target="_blank" rel="noreferrer" variant="outlined">Apple Maps</Button>
                   <Button variant="outlined" onClick={copyAddress}>Copy address</Button>
                 </Stack>
