@@ -40,7 +40,6 @@ import {
   limit,
   orderBy,
   query,
-  setDoc,
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
@@ -100,6 +99,10 @@ async function save(collectionName: string, payload: Record<string, unknown>) {
 
 function normalizeName(name: string) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
 }
 
 function authErrorMessage(error: unknown) {
@@ -376,6 +379,7 @@ function RsvpForm() {
   const [status, setStatus] = useState<Status>('idle');
   const [searchStatus, setSearchStatus] = useState<LoadStatus>('idle');
   const [searchName, setSearchName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -384,7 +388,48 @@ function RsvpForm() {
   const [existingRsvpId, setExistingRsvpId] = useState('');
   const message = firebaseMessage();
 
-  const search = async (event: React.FormEvent) => {
+  const loadInvitation = async (invitationId: string) => {
+    if (!db) throw new Error('Firebase is not configured.');
+    const invitationDoc = await getDoc(doc(db, 'invitations', invitationId));
+    if (!invitationDoc.exists()) {
+      setSearchStatus('loaded');
+      return;
+    }
+    const data = invitationDoc.data();
+    const nextInvitation = {
+      id: invitationDoc.id,
+      partyName: String(data.partyName ?? ''),
+      guests: (data.guests ?? []) as InvitationGuest[],
+    };
+    setInvitation(nextInvitation);
+    const rsvpDoc = await getDoc(doc(db, 'rsvps', invitationDoc.id));
+    if (rsvpDoc.exists()) {
+      const rsvpData = rsvpDoc.data() as RsvpRecord;
+      setExistingRsvpId(rsvpDoc.id);
+      setEmail(rsvpData.contactEmail ?? '');
+      setPhone(rsvpData.contactPhone ?? '');
+      setNotes(rsvpData.notes ?? '');
+      setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => {
+        const existing = rsvpData.responses?.find((response) => response.name === guest.name);
+        return [
+          guest.id,
+          existing ?? { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
+        ];
+      })));
+    } else {
+      setExistingRsvpId('');
+      setEmail('');
+      setPhone('');
+      setNotes('');
+      setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => [
+        guest.id,
+        { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
+      ])));
+    }
+    setSearchStatus('loaded');
+  };
+
+  const searchByName = async (event: React.FormEvent) => {
     event.preventDefault();
     setSearchStatus('loading');
     setStatus('idle');
@@ -396,44 +441,25 @@ function RsvpForm() {
         setSearchStatus('loaded');
         return;
       }
-      const invitationId = String(lookup.data().invitationId);
-      const invitationDoc = await getDoc(doc(db, 'invitations', invitationId));
-      if (!invitationDoc.exists()) {
+      await loadInvitation(String(lookup.data().invitationId));
+    } catch {
+      setSearchStatus('error');
+    }
+  };
+
+  const searchByEmail = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSearchStatus('loading');
+    setStatus('idle');
+    setInvitation(null);
+    try {
+      if (!db) throw new Error('Firebase is not configured.');
+      const lookup = await getDoc(doc(db, 'rsvpEmailLookups', normalizeEmail(editEmail)));
+      if (!lookup.exists()) {
         setSearchStatus('loaded');
         return;
       }
-      const data = invitationDoc.data();
-      const nextInvitation = {
-        id: invitationDoc.id,
-        partyName: String(data.partyName ?? ''),
-        guests: (data.guests ?? []) as InvitationGuest[],
-      };
-      setInvitation(nextInvitation);
-      const rsvpDoc = await getDoc(doc(db, 'rsvps', invitationDoc.id));
-      if (rsvpDoc.exists()) {
-        const rsvpData = rsvpDoc.data() as RsvpRecord;
-        setExistingRsvpId(rsvpDoc.id);
-        setEmail(rsvpData.contactEmail ?? '');
-        setPhone(rsvpData.contactPhone ?? '');
-        setNotes(rsvpData.notes ?? '');
-        setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => {
-          const existing = rsvpData.responses?.find((response) => response.name === guest.name);
-          return [
-            guest.id,
-            existing ?? { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
-          ];
-        })));
-      } else {
-        setExistingRsvpId('');
-        setEmail('');
-        setPhone('');
-        setNotes('');
-        setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => [
-          guest.id,
-          { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
-        ])));
-      }
-      setSearchStatus('loaded');
+      await loadInvitation(String(lookup.data().invitationId));
     } catch {
       setSearchStatus('error');
     }
@@ -445,7 +471,8 @@ function RsvpForm() {
     setStatus('saving');
     try {
       if (!db) throw new Error('Firebase is not configured.');
-      await setDoc(doc(db, 'rsvps', invitation.id), {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'rsvps', invitation.id), {
         invitationId: invitation.id,
         invitationName: invitation.partyName,
         contactEmail: email,
@@ -455,6 +482,12 @@ function RsvpForm() {
         updatedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       }, { merge: true });
+      batch.set(doc(db, 'rsvpEmailLookups', normalizeEmail(email)), {
+        invitationId: invitation.id,
+        contactEmail: normalizeEmail(email),
+        updatedAt: serverTimestamp(),
+      });
+      await batch.commit();
       setExistingRsvpId(invitation.id);
       setStatus('saved');
     } catch {
@@ -466,15 +499,26 @@ function RsvpForm() {
     <Paper className="form-panel" sx={{ p: { xs: 2, md: 4 }, maxWidth: 900, mx: 'auto' }}>
       <Stack spacing={2}>
         {message && <Alert severity="info">{message}</Alert>}
-        <Box component="form" onSubmit={search}>
+        <Box component="form" onSubmit={searchByName}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <TextField required fullWidth label="Search your name" value={searchName} onChange={(event) => setSearchName(event.target.value)} />
+            <TextField required fullWidth label="Search a name on your invitation" value={searchName} onChange={(event) => setSearchName(event.target.value)} />
             <Button type="submit" variant="contained" disabled={searchStatus === 'loading'} sx={{ minWidth: 150 }}>
               {searchStatus === 'loading' ? 'Searching' : 'Find Invitation'}
             </Button>
           </Stack>
         </Box>
-        {searchStatus === 'loaded' && !invitation && <Alert severity="warning">No invitation found for that name. Try the name as it appears on your invitation.</Alert>}
+        <Box component="form" onSubmit={searchByEmail}>
+          <Stack spacing={1}>
+            <Typography variant="overline" color="text.secondary">Already RSVP'd?</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField required fullWidth type="email" label="Edit using RSVP contact email" value={editEmail} onChange={(event) => setEditEmail(event.target.value)} />
+              <Button type="submit" variant="outlined" disabled={searchStatus === 'loading'} sx={{ minWidth: 150 }}>
+                Edit RSVP
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+        {searchStatus === 'loaded' && !invitation && <Alert severity="warning">No invitation found. For a first RSVP, search a name from the invitation. To edit, use the email submitted with the RSVP.</Alert>}
         {searchStatus === 'error' && <Alert severity="error">Unable to search invitations right now.</Alert>}
         {status === 'saved' && <Alert severity="success">RSVP received.</Alert>}
         {status === 'error' && <Alert severity="error">Unable to submit right now. Check Firebase configuration.</Alert>}
