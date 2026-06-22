@@ -22,7 +22,7 @@ export const wedding = {
   faqs: [
     { q: 'What should I wear?', a: 'Garden formal. Suits, dresses, jumpsuits, and comfortable shoes for lawn paths are all welcome.' },
     { q: 'Can I bring a plus one?', a: 'Please check your invitation. If a guest is listed, include them when submitting your RSVP.' },
-    { q: 'Are kids invited?', a: 'We love your little ones, but the wedding day is adults-only outside of immediate family.' },
+    { q: 'Are kids invited?', a: 'Yes. Kids are welcome to celebrate with us.' },
     { q: 'Where should I stay?', a: 'Hotel blocks and transport details will be added here as the date gets closer.' },
   ],
 };
