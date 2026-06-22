@@ -248,8 +248,8 @@ function Hero() {
         alignItems: 'end',
         color: 'white',
         background:
-          'linear-gradient(180deg, rgba(34, 27, 21, .08), rgba(34, 27, 21, .82)), url(https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?auto=format&fit=crop&w=1800&q=80)',
-        backgroundPosition: 'center',
+          'linear-gradient(180deg, rgba(34, 27, 21, .10), rgba(34, 27, 21, .82)), url(https://images.squarespace-cdn.com/content/v1/696bfd55754a6a4c291df382/cdd094a5-a863-4170-827f-31236e59bf29/acphoto-3-200.jpg)',
+        backgroundPosition: { xs: 'center top', md: 'center 44%' },
         backgroundSize: 'cover',
       }}
     >

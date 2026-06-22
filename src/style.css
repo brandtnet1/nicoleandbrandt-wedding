@@ -93,7 +93,7 @@ pre {
 .hero-stage {
   position: relative;
   overflow: hidden;
-  animation: heroZoom 18s ease-in-out infinite alternate;
+  background-size: cover !important;
 }
 
 .hero-stage::after {
@@ -351,11 +351,6 @@ pre {
     scroll-behavior: auto !important;
     transition-duration: 1ms !important;
   }
-}
-
-@keyframes heroZoom {
-  from { background-size: 100%; }
-  to { background-size: 106%; }
 }
 
 @keyframes ambientDrift {
