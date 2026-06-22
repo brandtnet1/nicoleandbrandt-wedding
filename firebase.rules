@@ -69,5 +69,9 @@ service cloud.firestore {
       allow create: if validGuestbook();
       allow read, update, delete: if isAdmin();
     }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }
