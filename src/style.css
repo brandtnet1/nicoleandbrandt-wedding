@@ -188,7 +188,7 @@ pre {
   height: 3px;
   margin-top: 12px;
   border-radius: 99px;
-  background: linear-gradient(90deg, var(--cranberry), var(--gold), var(--moss));
+  background: linear-gradient(90deg, var(--ember), var(--copper), var(--gold));
 }
 
 .page-header {
@@ -297,7 +297,7 @@ pre {
   inset: auto 18% 0;
   height: 3px;
   border-radius: 99px 99px 0 0;
-  background: linear-gradient(90deg, var(--cranberry), var(--gold), var(--moss));
+  background: linear-gradient(90deg, var(--ember), var(--copper), var(--gold));
   animation: glowLine 2.8s ease-in-out infinite;
 }
 
