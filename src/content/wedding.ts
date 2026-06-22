@@ -6,7 +6,7 @@ export const wedding = {
   venue: 'Rockeys Lake Estate',
   venueAddress: '2700 Cox Rd, Woodstock, GA 30188',
   rsvpDeadline: 'TBD',
-  email: 'hello@nicoleandbrandt.com',
+  email: '',
   registry: [
     { name: 'Zola', description: 'Home, honeymoon, and experiences', url: 'https://www.zola.com/' },
     { name: 'Target', description: 'Everyday home essentials', url: 'https://www.target.com/gift-registry' },

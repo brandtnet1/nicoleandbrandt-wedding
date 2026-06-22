@@ -565,7 +565,7 @@ function Footer() {
       <Container>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'space-between' }}>
           <Typography>{wedding.couple} - {wedding.date}</Typography>
-          <Typography>{wedding.email}</Typography>
+          <Typography>More details coming soon</Typography>
         </Stack>
       </Container>
     </Box>
