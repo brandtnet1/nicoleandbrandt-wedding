@@ -165,17 +165,28 @@ function Home() {
         </Grid>
       </Section>
       <Section title="Weekend Preview" tone="cream">
-        <Grid container spacing={3}>
-          {wedding.schedule.map((item) => (
-            <Grid key={item.title} size={{ xs: 12, md: 6, lg: 4 }}>
-              <Paper sx={{ p: 3, height: '100%' }}>
-                <Typography variant="overline" color="secondary">{item.time}</Typography>
+        <Paper sx={{ maxWidth: 860, mx: 'auto', overflow: 'hidden' }}>
+          {wedding.schedule.map((item, index) => (
+            <Box
+              key={item.title}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '132px 1fr' },
+                gap: { xs: 0.5, sm: 3 },
+                p: { xs: 2.5, md: 3 },
+                borderBottom: index === wedding.schedule.length - 1 ? 0 : '1px solid #eadfce',
+              }}
+            >
+              <Typography variant="overline" color="secondary" sx={{ fontWeight: 800 }}>
+                {item.time}
+              </Typography>
+              <Box>
                 <Typography variant="h5">{item.title}</Typography>
                 <Typography color="text.secondary">{item.detail}</Typography>
-              </Paper>
-            </Grid>
+              </Box>
+            </Box>
           ))}
-        </Grid>
+        </Paper>
       </Section>
       <Section title="Travel & FAQ">
         <Grid container spacing={3}>
