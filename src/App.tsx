@@ -248,7 +248,7 @@ function Hero() {
         alignItems: 'end',
         color: 'white',
         background:
-          'linear-gradient(180deg, rgba(34, 27, 21, .10), rgba(34, 27, 21, .82)), url(https://images.squarespace-cdn.com/content/v1/696bfd55754a6a4c291df382/cdd094a5-a863-4170-827f-31236e59bf29/acphoto-3-200.jpg)',
+          'linear-gradient(180deg, rgba(34, 27, 21, .10), rgba(34, 27, 21, .82)), url(https://images.squarespace-cdn.com/content/v1/696bfd55754a6a4c291df382/89c6b496-12a2-4aa6-a890-230cf63f3336/IMG_0304.JPG?format=1000w)',
         backgroundPosition: { xs: 'center top', md: 'center 44%' },
         backgroundSize: 'cover',
       }}
