@@ -30,14 +30,13 @@ service cloud.firestore {
     }
 
     function validRsvp() {
-      return hasOnly(["name", "email", "attending", "partySize", "meal", "notes", "createdAt"])
-        && isShortText("name", 120)
-        && isShortText("email", 180)
-        && request.resource.data.attending in ["yes", "no"]
-        && request.resource.data.partySize is int
-        && request.resource.data.partySize >= 1
-        && request.resource.data.partySize <= 8
-        && isOptionalShortText("meal", 120)
+      return hasOnly(["invitationId", "invitationName", "contactEmail", "responses", "notes", "createdAt"])
+        && isShortText("invitationId", 120)
+        && isShortText("invitationName", 240)
+        && isShortText("contactEmail", 180)
+        && request.resource.data.responses is list
+        && request.resource.data.responses.size() >= 1
+        && request.resource.data.responses.size() <= 20
         && isOptionalShortText("notes", 1000)
         && hasServerCreateTime();
     }
@@ -52,6 +51,17 @@ service cloud.firestore {
     match /rsvps/{id} {
       allow create: if validRsvp();
       allow read, update, delete: if isAdmin();
+    }
+
+    match /invitations/{id} {
+      allow get: if true;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /inviteLookups/{name} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if isAdmin();
     }
 
     match /guestbook/{id} {

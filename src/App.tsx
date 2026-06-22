@@ -37,11 +37,14 @@ import SendIcon from '@mui/icons-material/Send';
 import {
   addDoc,
   collection,
+  doc,
   getDocs,
+  getDoc,
   limit,
   orderBy,
   query,
   serverTimestamp,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   getIdTokenResult,
@@ -57,6 +60,13 @@ import { wedding } from './content/wedding';
 type Status = 'idle' | 'saving' | 'saved' | 'error';
 type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 type GuestRecord = Record<string, unknown> & { id: string };
+type InvitationGuest = { id: string; name: string };
+type Invitation = {
+  id: string;
+  partyName: string;
+  guests: InvitationGuest[];
+};
+type GuestResponse = Record<string, { name: string; attending: 'yes' | 'no'; meal: string }>;
 
 const navItems = [
   { label: 'Home', path: '/' },
@@ -76,6 +86,10 @@ function firebaseMessage() {
 async function save(collectionName: string, payload: Record<string, unknown>) {
   if (!db) throw new Error('Firebase is not configured.');
   await addDoc(collection(db, collectionName), { ...payload, createdAt: serverTimestamp() });
+}
+
+function normalizeName(name: string) {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 function authErrorMessage(error: unknown) {
@@ -348,38 +362,130 @@ function RsvpPage() {
 
 function RsvpForm() {
   const [status, setStatus] = useState<Status>('idle');
-  const [form, setForm] = useState({ name: '', email: '', attending: 'yes', partySize: '1', meal: '', notes: '' });
+  const [searchStatus, setSearchStatus] = useState<LoadStatus>('idle');
+  const [searchName, setSearchName] = useState('');
+  const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [email, setEmail] = useState('');
+  const [notes, setNotes] = useState('');
+  const [responses, setResponses] = useState<GuestResponse>({});
   const message = firebaseMessage();
+
+  const search = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSearchStatus('loading');
+    setStatus('idle');
+    setInvitation(null);
+    try {
+      if (!db) throw new Error('Firebase is not configured.');
+      const lookup = await getDoc(doc(db, 'inviteLookups', normalizeName(searchName)));
+      if (!lookup.exists()) {
+        setSearchStatus('loaded');
+        return;
+      }
+      const invitationId = String(lookup.data().invitationId);
+      const invitationDoc = await getDoc(doc(db, 'invitations', invitationId));
+      if (!invitationDoc.exists()) {
+        setSearchStatus('loaded');
+        return;
+      }
+      const data = invitationDoc.data();
+      const nextInvitation = {
+        id: invitationDoc.id,
+        partyName: String(data.partyName ?? ''),
+        guests: (data.guests ?? []) as InvitationGuest[],
+      };
+      setInvitation(nextInvitation);
+      setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => [
+        guest.id,
+        { name: guest.name, attending: 'yes', meal: '' },
+      ])));
+      setSearchStatus('loaded');
+    } catch {
+      setSearchStatus('error');
+    }
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!invitation) return;
     setStatus('saving');
     try {
-      await save('rsvps', { ...form, partySize: Number(form.partySize) });
+      await save('rsvps', {
+        invitationId: invitation.id,
+        invitationName: invitation.partyName,
+        contactEmail: email,
+        responses: Object.values(responses),
+        notes,
+      });
       setStatus('saved');
-      setForm({ name: '', email: '', attending: 'yes', partySize: '1', meal: '', notes: '' });
     } catch {
       setStatus('error');
     }
   };
 
   return (
-    <Paper className="form-panel" component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 860, mx: 'auto' }}>
+    <Paper className="form-panel" sx={{ p: { xs: 2, md: 4 }, maxWidth: 900, mx: 'auto' }}>
       <Stack spacing={2}>
         {message && <Alert severity="info">{message}</Alert>}
+        <Box component="form" onSubmit={search}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField required fullWidth label="Search your name" value={searchName} onChange={(event) => setSearchName(event.target.value)} />
+            <Button type="submit" variant="contained" disabled={searchStatus === 'loading'} sx={{ minWidth: 150 }}>
+              {searchStatus === 'loading' ? 'Searching' : 'Find Invitation'}
+            </Button>
+          </Stack>
+        </Box>
+        {searchStatus === 'loaded' && !invitation && <Alert severity="warning">No invitation found for that name. Try the name as it appears on your invitation.</Alert>}
+        {searchStatus === 'error' && <Alert severity="error">Unable to search invitations right now.</Alert>}
         {status === 'saved' && <Alert severity="success">RSVP received.</Alert>}
         {status === 'error' && <Alert severity="error">Unable to submit right now. Check Firebase configuration.</Alert>}
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 6 }}><TextField required fullWidth label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Grid>
-          <Grid size={{ xs: 12, md: 6 }}><TextField required fullWidth type="email" label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Grid>
-          <Grid size={{ xs: 12, md: 4 }}><TextField select fullWidth label="Attending" value={form.attending} onChange={(e) => setForm({ ...form, attending: e.target.value })}><MenuItem value="yes">Yes</MenuItem><MenuItem value="no">No</MenuItem></TextField></Grid>
-          <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth type="number" label="Party size" slotProps={{ htmlInput: { min: 1, max: 8 } }} value={form.partySize} onChange={(e) => setForm({ ...form, partySize: e.target.value })} /></Grid>
-          <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Meal preference" value={form.meal} onChange={(e) => setForm({ ...form, meal: e.target.value })} /></Grid>
-          <Grid size={12}><TextField fullWidth multiline minRows={3} label="Dietary needs or notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Grid>
-        </Grid>
-        <Button type="submit" variant="contained" size="large" disabled={status === 'saving'} endIcon={<SendIcon />}>
-          {status === 'saving' ? 'Submitting' : 'Submit RSVP'}
-        </Button>
+        {invitation && (
+          <Box component="form" onSubmit={submit}>
+            <Stack spacing={2.5}>
+              <Alert severity="info">Invitation found for {invitation.partyName}. Please respond for each guest below.</Alert>
+              <TextField required fullWidth type="email" label="Contact email" value={email} onChange={(event) => setEmail(event.target.value)} />
+              {invitation.guests.map((guest) => (
+                <Paper key={guest.id} variant="outlined" sx={{ p: 2 }}>
+                  <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
+                      <Typography variant="h6">{guest.name}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 4 }}>
+                      <TextField
+                        select
+                        fullWidth
+                        label="RSVP"
+                        value={responses[guest.id]?.attending ?? 'yes'}
+                        onChange={(event) => setResponses({
+                          ...responses,
+                          [guest.id]: { ...responses[guest.id], name: guest.name, attending: event.target.value as 'yes' | 'no' },
+                        })}
+                      >
+                        <MenuItem value="yes">Attending</MenuItem>
+                        <MenuItem value="no">Not attending</MenuItem>
+                      </TextField>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 4 }}>
+                      <TextField
+                        fullWidth
+                        label="Meal preference"
+                        value={responses[guest.id]?.meal ?? ''}
+                        onChange={(event) => setResponses({
+                          ...responses,
+                          [guest.id]: { ...responses[guest.id], name: guest.name, meal: event.target.value },
+                        })}
+                      />
+                    </Grid>
+                  </Grid>
+                </Paper>
+              ))}
+              <TextField fullWidth multiline minRows={3} label="Dietary needs or notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+              <Button type="submit" variant="contained" size="large" disabled={status === 'saving'} endIcon={<SendIcon />}>
+                {status === 'saving' ? 'Submitting' : 'Submit RSVP'}
+              </Button>
+            </Stack>
+          </Box>
+        )}
       </Stack>
     </Paper>
   );
@@ -458,9 +564,12 @@ function AdminPage() {
   const [rows, setRows] = useState<GuestRecord[]>([]);
   const [error, setError] = useState('');
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle');
+  const [inviteStatus, setInviteStatus] = useState<Status>('idle');
+  const [inviteForm, setInviteForm] = useState({ partyName: '', guestNames: '' });
 
   const collectionLabel = useMemo(() => ({
     rsvps: 'RSVPs',
+    invitations: 'Invitations',
     guestbook: 'Guestbook',
   })[activeCollection] ?? activeCollection, [activeCollection]);
 
@@ -505,10 +614,47 @@ function AdminPage() {
     }
   };
 
+  const createInvitation = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setInviteStatus('saving');
+    setError('');
+    try {
+      if (!db) throw new Error('Firebase is not configured.');
+      const firestore = db;
+      const guestNames = inviteForm.guestNames
+        .split('\n')
+        .map((name) => name.trim())
+        .filter(Boolean);
+      if (guestNames.length === 0) throw new Error('Add at least one guest name.');
+      const invitationRef = doc(collection(firestore, 'invitations'));
+      const guests = guestNames.map((name, index) => ({ id: `${index + 1}`, name }));
+      const batch = writeBatch(firestore);
+      batch.set(invitationRef, {
+        partyName: inviteForm.partyName || guestNames.join(', '),
+        guests,
+        createdAt: serverTimestamp(),
+      });
+      guestNames.forEach((name) => {
+        batch.set(doc(firestore, 'inviteLookups', normalizeName(name)), {
+          invitationId: invitationRef.id,
+          guestName: name,
+          partyName: inviteForm.partyName || guestNames.join(', '),
+          createdAt: serverTimestamp(),
+        });
+      });
+      await batch.commit();
+      setInviteForm({ partyName: '', guestNames: '' });
+      setInviteStatus('saved');
+    } catch (caught) {
+      setInviteStatus('error');
+      setError(caught instanceof Error ? caught.message : 'Unable to create invitation.');
+    }
+  };
+
   return (
     <>
       <PageHeader title="Admin" eyebrow="Private dashboard">
-        <Typography variant="h6">Review RSVP and guestbook submissions.</Typography>
+                <Typography variant="h6">Review RSVPs, invitations, and guestbook submissions.</Typography>
       </PageHeader>
       <Section title="Submissions">
         <Paper className="form-panel" sx={{ p: { xs: 2, md: 4 }, maxWidth: 1120, mx: 'auto' }}>
@@ -531,8 +677,36 @@ function AdminPage() {
                   </Alert>
                 ) : (
                   <>
+                    <Paper component="form" variant="outlined" onSubmit={createInvitation} sx={{ p: 2.5 }}>
+                      <Stack spacing={2}>
+                        <Typography variant="h5">Create invitation group</Typography>
+                        {inviteStatus === 'saved' && <Alert severity="success">Invitation group created.</Alert>}
+                        {inviteStatus === 'error' && <Alert severity="error">Unable to create invitation group.</Alert>}
+                        <TextField
+                          fullWidth
+                          label="Invitation name"
+                          value={inviteForm.partyName}
+                          onChange={(event) => setInviteForm({ ...inviteForm, partyName: event.target.value })}
+                          helperText="Example: Smith Family or Jeff Smith"
+                        />
+                        <TextField
+                          required
+                          fullWidth
+                          multiline
+                          minRows={4}
+                          label="Invited guests"
+                          value={inviteForm.guestNames}
+                          onChange={(event) => setInviteForm({ ...inviteForm, guestNames: event.target.value })}
+                          helperText="One full guest name per line. Example: Jeff Smith, Maddie Smith, Anne Smith."
+                        />
+                        <Button type="submit" variant="contained" disabled={inviteStatus === 'saving'}>
+                          {inviteStatus === 'saving' ? 'Creating' : 'Create invitation'}
+                        </Button>
+                      </Stack>
+                    </Paper>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                       <Button variant={activeCollection === 'rsvps' ? 'contained' : 'outlined'} onClick={() => load('rsvps')}>Load RSVPs</Button>
+                      <Button variant={activeCollection === 'invitations' ? 'contained' : 'outlined'} onClick={() => load('invitations')}>Load invitations</Button>
                       <Button variant={activeCollection === 'guestbook' ? 'contained' : 'outlined'} onClick={() => load('guestbook')}>Load guestbook</Button>
                     </Stack>
                     {loadStatus === 'loading' && <Alert severity="info">Loading {collectionLabel}...</Alert>}
@@ -551,6 +725,11 @@ function AdminPage() {
 
 function AdminTable({ rows }: { rows: GuestRecord[] }) {
   const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row)))).filter((key) => key !== 'createdAt');
+  const formatCell = (value: unknown) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
   return (
     <TableContainer component={Paper} variant="outlined">
       <Table size="small">
@@ -563,7 +742,7 @@ function AdminTable({ rows }: { rows: GuestRecord[] }) {
           {rows.map((row) => (
             <TableRow key={row.id}>
               {columns.map((column) => (
-                <TableCell key={column}>{String(row[column] ?? '')}</TableCell>
+                <TableCell key={column}>{formatCell(row[column])}</TableCell>
               ))}
             </TableRow>
           ))}

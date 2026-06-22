@@ -5,7 +5,8 @@ Full-stack wedding site built as a static React app for GitHub Pages with Fireba
 ## Features
 
 - Responsive wedding homepage with event details and schedule
-- RSVP form stored in Firestore
+- Invitation-based RSVP form stored in Firestore
+- Admin invitation group creation
 - Registry links
 - Travel, FAQ, and weekend information
 - Guestbook form stored in Firestore
@@ -35,7 +36,14 @@ Fill `.env.local` with your Firebase web app values.
 firebase deploy --only firestore:rules
 ```
 
-The app writes to these collections: `rsvps` and `guestbook`.
+The app uses these collections:
+
+- `invitations`: invitation groups and included guests
+- `inviteLookups`: exact-name lookup documents for finding an invitation
+- `rsvps`: submitted invitation responses
+- `guestbook`: guestbook messages
+
+Create invitation groups from `/admin`. Add one invited guest name per line. Each guest name gets a lookup entry, so any invited person can search their own name and RSVP for everyone included on that invitation.
 
 Firestore admin access is controlled by a private Firebase Auth custom claim instead of public email addresses in the repo. Set it from a trusted Admin SDK environment:
 
@@ -53,7 +61,7 @@ To use the script:
 
 The service account file is ignored by git. Do not commit it.
 
-For a public site, enable Firebase App Check for the web app in the Firebase Console and enforce it for Firestore after confirming RSVP and guestbook submissions work in production.
+For a public site, enable Firebase App Check for the web app in the Firebase Console and enforce it for Firestore after confirming invitation lookup, RSVP, and guestbook submissions work in production.
 
 ## GitHub Pages
 
