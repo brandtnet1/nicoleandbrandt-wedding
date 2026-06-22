@@ -68,6 +68,26 @@ async function save(collectionName: string, payload: Record<string, unknown>) {
   await addDoc(collection(db, collectionName), { ...payload, createdAt: serverTimestamp() });
 }
 
+function authErrorMessage(error: unknown) {
+  if (typeof error === 'object' && error && 'code' in error) {
+    const code = String((error as { code: unknown }).code);
+    if (code === 'auth/unauthorized-domain') {
+      return 'This domain is not authorized in Firebase Auth. Add nicoleandbrandt.com and brandtnet1.github.io in Firebase Console > Authentication > Settings > Authorized domains.';
+    }
+    if (code === 'auth/operation-not-allowed') {
+      return 'Google sign-in is not enabled. Enable it in Firebase Console > Authentication > Sign-in method.';
+    }
+    if (code === 'auth/popup-closed-by-user') {
+      return 'The Google sign-in popup was closed before login completed.';
+    }
+    if (code === 'auth/popup-blocked') {
+      return 'The browser blocked the Google sign-in popup. Allow popups for this site and try again.';
+    }
+    return `Google sign-in failed: ${code}`;
+  }
+  return 'Google sign-in failed.';
+}
+
 function App() {
   const [mobileAnchor, setMobileAnchor] = useState<null | HTMLElement>(null);
   const [activeTab, setActiveTab] = useState(0);
@@ -400,8 +420,8 @@ function Admin() {
     try {
       setError('');
       await signInWithPopup(auth, googleProvider);
-    } catch {
-      setError('Google sign-in failed.');
+    } catch (caught) {
+      setError(authErrorMessage(caught));
     }
   };
 
