@@ -29,8 +29,12 @@ service cloud.firestore {
       return request.resource.data.createdAt == request.time;
     }
 
+    function hasServerUpdateTime() {
+      return request.resource.data.updatedAt == request.time;
+    }
+
     function validRsvp() {
-      return hasOnly(["invitationId", "invitationName", "contactEmail", "contactPhone", "responses", "notes", "createdAt"])
+      return hasOnly(["invitationId", "invitationName", "contactEmail", "contactPhone", "responses", "notes", "createdAt", "updatedAt"])
         && isShortText("invitationId", 120)
         && isShortText("invitationName", 240)
         && isShortText("contactEmail", 180)
@@ -39,7 +43,8 @@ service cloud.firestore {
         && request.resource.data.responses.size() >= 1
         && request.resource.data.responses.size() <= 20
         && isOptionalShortText("notes", 1000)
-        && hasServerCreateTime();
+        && hasServerCreateTime()
+        && hasServerUpdateTime();
     }
 
     function validGuestbook() {
@@ -50,8 +55,9 @@ service cloud.firestore {
     }
 
     match /rsvps/{id} {
-      allow create: if validRsvp();
-      allow read, update, delete: if isAdmin();
+      allow get: if true;
+      allow create, update: if id == request.resource.data.invitationId && validRsvp();
+      allow list, delete: if isAdmin();
     }
 
     match /invitations/{id} {

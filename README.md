@@ -43,7 +43,7 @@ The app uses these collections:
 - `rsvps`: submitted invitation responses
 - `guestbook`: guestbook messages
 
-Create invitation groups from `/admin`. Add one invited guest name per line. Each guest name gets a lookup entry, so any invited person can search their own name and RSVP for everyone included on that invitation. The RSVP captures wedding attendance, welcome-event attendance, meal preference, contact email, optional phone number, and notes.
+Create invitation groups from `/admin`. Add one invited guest name per line. Each guest name gets a lookup entry, so any invited person can search their own name and RSVP for everyone included on that invitation. The RSVP captures wedding attendance, welcome-event attendance, meal preference, contact email, optional phone number, and notes. Guests can search again later to edit the RSVP for their invitation.
 
 Firestore admin access is controlled by a private Firebase Auth custom claim instead of public email addresses in the repo. Set it from a trusted Admin SDK environment:
 

@@ -40,6 +40,7 @@ import {
   limit,
   orderBy,
   query,
+  setDoc,
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
@@ -64,11 +65,22 @@ type Invitation = {
   guests: InvitationGuest[];
 };
 type Attendance = 'yes' | 'no';
-type GuestResponse = Record<string, { name: string; wedding: Attendance; welcomeEvent: Attendance; meal: string }>;
+type RsvpResponse = { name: string; wedding: Attendance; welcomeEvent: Attendance; meal: string };
+type GuestResponse = Record<string, RsvpResponse>;
+type RsvpRecord = {
+  id: string;
+  invitationId: string;
+  invitationName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  responses: RsvpResponse[];
+  notes?: string;
+};
 
 const navItems = [
   { label: 'Home', path: '/' },
   { label: 'RSVP', path: '/rsvp' },
+  { label: 'Travel', path: '/travel' },
   { label: 'Registry', path: '/registry' },
   { label: 'Guestbook', path: '/guestbook' },
 ];
@@ -112,6 +124,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/rsvp" element={<RsvpPage />} />
+          <Route path="/travel" element={<TravelPage />} />
           <Route path="/registry" element={<RegistryPage />} />
           <Route path="/guestbook" element={<GuestbookPage />} />
           <Route path="/admin" element={<AdminPage />} />
@@ -368,6 +381,7 @@ function RsvpForm() {
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [responses, setResponses] = useState<GuestResponse>({});
+  const [existingRsvpId, setExistingRsvpId] = useState('');
   const message = firebaseMessage();
 
   const search = async (event: React.FormEvent) => {
@@ -395,10 +409,30 @@ function RsvpForm() {
         guests: (data.guests ?? []) as InvitationGuest[],
       };
       setInvitation(nextInvitation);
-      setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => [
-        guest.id,
-        { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
-      ])));
+      const rsvpDoc = await getDoc(doc(db, 'rsvps', invitationDoc.id));
+      if (rsvpDoc.exists()) {
+        const rsvpData = rsvpDoc.data() as RsvpRecord;
+        setExistingRsvpId(rsvpDoc.id);
+        setEmail(rsvpData.contactEmail ?? '');
+        setPhone(rsvpData.contactPhone ?? '');
+        setNotes(rsvpData.notes ?? '');
+        setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => {
+          const existing = rsvpData.responses?.find((response) => response.name === guest.name);
+          return [
+            guest.id,
+            existing ?? { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
+          ];
+        })));
+      } else {
+        setExistingRsvpId('');
+        setEmail('');
+        setPhone('');
+        setNotes('');
+        setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => [
+          guest.id,
+          { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
+        ])));
+      }
       setSearchStatus('loaded');
     } catch {
       setSearchStatus('error');
@@ -410,14 +444,18 @@ function RsvpForm() {
     if (!invitation) return;
     setStatus('saving');
     try {
-      await save('rsvps', {
+      if (!db) throw new Error('Firebase is not configured.');
+      await setDoc(doc(db, 'rsvps', invitation.id), {
         invitationId: invitation.id,
         invitationName: invitation.partyName,
         contactEmail: email,
         contactPhone: phone,
         responses: Object.values(responses),
         notes,
-      });
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      }, { merge: true });
+      setExistingRsvpId(invitation.id);
       setStatus('saved');
     } catch {
       setStatus('error');
@@ -443,7 +481,9 @@ function RsvpForm() {
         {invitation && (
           <Box component="form" onSubmit={submit}>
             <Stack spacing={2.5}>
-              <Alert severity="info">Invitation found for {invitation.partyName}. Please respond for each guest below.</Alert>
+              <Alert severity="info">
+                Invitation found for {invitation.partyName}. {existingRsvpId ? 'Existing RSVP loaded. You can update it below.' : 'Please respond for each guest below.'}
+              </Alert>
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <TextField required fullWidth type="email" label="Contact email" value={email} onChange={(event) => setEmail(event.target.value)} />
@@ -535,6 +575,57 @@ function RegistryPage() {
   );
 }
 
+function TravelPage() {
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wedding.venueAddress)}`;
+  const appleMapsUrl = `https://maps.apple.com/?q=${encodeURIComponent(wedding.venueAddress)}`;
+  const copyAddress = async () => {
+    await navigator.clipboard.writeText(`${wedding.venue}, ${wedding.venueAddress}`);
+  };
+
+  return (
+    <>
+      <PageHeader title="Travel" eyebrow="Getting there">
+        <Typography variant="h6">{wedding.venue} is in {wedding.city}. Plan for extra travel time from ATL, especially around Thanksgiving weekend.</Typography>
+      </PageHeader>
+      <Section title="Venue">
+        <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 }, height: '100%' }}>
+              <Stack spacing={2}>
+                <Typography variant="h4">{wedding.venue}</Typography>
+                <Typography color="text.secondary">{wedding.venueAddress}</Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <Button component="a" href={googleMapsUrl} target="_blank" rel="noreferrer" variant="contained">Google Maps</Button>
+                  <Button component="a" href={appleMapsUrl} target="_blank" rel="noreferrer" variant="outlined">Apple Maps</Button>
+                  <Button variant="outlined" onClick={copyAddress}>Copy address</Button>
+                </Stack>
+              </Stack>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 }, height: '100%' }}>
+              <Stack spacing={2}>
+                <FlightIcon color="primary" />
+                <Typography variant="h5">Airport</Typography>
+                <Typography color="text.secondary">Hartsfield-Jackson Atlanta International Airport is the main airport for out-of-town guests. Woodstock is north of Atlanta, so check drive times before leaving.</Typography>
+              </Stack>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 } }}>
+              <Stack spacing={2}>
+                <RestaurantIcon color="primary" />
+                <Typography variant="h5">Hotels & Transportation</Typography>
+                <Typography color="text.secondary">Hotel blocks, shuttle details, and welcome-event travel notes will be added here once finalized.</Typography>
+              </Stack>
+            </Paper>
+          </Grid>
+        </Grid>
+      </Section>
+    </>
+  );
+}
+
 function GuestbookPage() {
   const [status, setStatus] = useState<Status>('idle');
   const [form, setForm] = useState({ name: '', message: '' });
@@ -582,6 +673,16 @@ function AdminPage() {
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle');
   const [inviteStatus, setInviteStatus] = useState<Status>('idle');
   const [inviteForm, setInviteForm] = useState({ partyName: '', guestNames: '' });
+  const [dashboardStatus, setDashboardStatus] = useState<LoadStatus>('idle');
+  const [dashboard, setDashboard] = useState({
+    invited: 0,
+    invitations: 0,
+    respondedInvitations: 0,
+    weddingAttending: 0,
+    welcomeAttending: 0,
+    declinedWedding: 0,
+    missingInvitations: 0,
+  });
 
   const collectionLabel = useMemo(() => ({
     rsvps: 'RSVPs',
@@ -627,6 +728,35 @@ function AdminPage() {
       await signInWithPopup(auth, googleProvider);
     } catch (caught) {
       setError(authErrorMessage(caught));
+    }
+  };
+
+  const loadDashboard = async () => {
+    setDashboardStatus('loading');
+    setError('');
+    try {
+      if (!db) throw new Error('Firebase is not configured.');
+      const [invitationSnapshot, rsvpSnapshot] = await Promise.all([
+        getDocs(collection(db, 'invitations')),
+        getDocs(collection(db, 'rsvps')),
+      ]);
+      const rsvps = rsvpSnapshot.docs.map((document) => document.data() as RsvpRecord);
+      const weddingAttending = rsvps.flatMap((rsvp) => rsvp.responses ?? []).filter((response) => response.wedding === 'yes').length;
+      const welcomeAttending = rsvps.flatMap((rsvp) => rsvp.responses ?? []).filter((response) => response.welcomeEvent === 'yes').length;
+      const declinedWedding = rsvps.flatMap((rsvp) => rsvp.responses ?? []).filter((response) => response.wedding === 'no').length;
+      setDashboard({
+        invited: invitationSnapshot.docs.reduce((sum, document) => sum + (((document.data().guests ?? []) as unknown[]).length), 0),
+        invitations: invitationSnapshot.size,
+        respondedInvitations: rsvpSnapshot.size,
+        weddingAttending,
+        welcomeAttending,
+        declinedWedding,
+        missingInvitations: Math.max(0, invitationSnapshot.size - rsvpSnapshot.size),
+      });
+      setDashboardStatus('loaded');
+    } catch (caught) {
+      setDashboardStatus('error');
+      setError(caught instanceof Error ? caught.message : 'Unable to load dashboard.');
     }
   };
 
@@ -693,6 +823,34 @@ function AdminPage() {
                   </Alert>
                 ) : (
                   <>
+                    <Paper variant="outlined" sx={{ p: 2.5 }}>
+                      <Stack spacing={2}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between' }}>
+                          <Typography variant="h5">Dashboard</Typography>
+                          <Button variant="outlined" onClick={loadDashboard} disabled={dashboardStatus === 'loading'}>
+                            {dashboardStatus === 'loading' ? 'Loading' : 'Refresh dashboard'}
+                          </Button>
+                        </Stack>
+                        <Grid container spacing={2}>
+                          {[
+                            ['Invited guests', dashboard.invited],
+                            ['Invitation groups', dashboard.invitations],
+                            ['Responded groups', dashboard.respondedInvitations],
+                            ['Missing RSVPs', dashboard.missingInvitations],
+                            ['Wedding attending', dashboard.weddingAttending],
+                            ['Welcome attending', dashboard.welcomeAttending],
+                            ['Wedding declined', dashboard.declinedWedding],
+                          ].map(([label, value]) => (
+                            <Grid key={label} size={{ xs: 12, sm: 6, md: 3 }}>
+                              <Paper className="lift-card" sx={{ p: 2 }}>
+                                <Typography variant="overline">{label}</Typography>
+                                <Typography variant="h4">{value}</Typography>
+                              </Paper>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Stack>
+                    </Paper>
                     <Paper component="form" variant="outlined" onSubmit={createInvitation} sx={{ p: 2.5 }}>
                       <Stack spacing={2}>
                         <Typography variant="h5">Create invitation group</Typography>
