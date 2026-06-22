@@ -259,7 +259,7 @@ function PageHeader({ title, eyebrow, children }: { title: string; eyebrow: stri
   return (
     <Box sx={{ py: { xs: 7, md: 9 }, bgcolor: '#30261f', color: 'white' }}>
       <Container>
-        <Stack spacing={1.5} sx={{ maxWidth: 760 }}>
+        <Stack spacing={1.5} sx={{ alignItems: 'center', maxWidth: 760, mx: 'auto', textAlign: 'center' }}>
           <Typography variant="overline" color="#e7b66d">{eyebrow}</Typography>
           <Typography variant="h1" sx={{ fontSize: { xs: 48, md: 78 }, lineHeight: 0.98 }}>{title}</Typography>
           {children}
@@ -312,7 +312,7 @@ function RsvpForm() {
   };
 
   return (
-    <Paper component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 860 }}>
+    <Paper component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 860, mx: 'auto' }}>
       <Stack spacing={2}>
         {message && <Alert severity="info">{message}</Alert>}
         {status === 'saved' && <Alert severity="success">RSVP received.</Alert>}
@@ -351,7 +351,7 @@ function SaveTheDateForm() {
   };
 
   return (
-    <Paper component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 860 }}>
+    <Paper component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 860, mx: 'auto' }}>
       <Stack spacing={2}>
         {message && <Alert severity="info">{message}</Alert>}
         {status === 'saved' && <Alert severity="success">Contact details saved.</Alert>}
@@ -375,7 +375,7 @@ function RegistryPage() {
         <Typography variant="h6">Your presence is the gift. For anyone who has asked, our registries are linked below.</Typography>
       </PageHeader>
       <Section title="Gift Registries">
-        <Grid container spacing={3}>
+        <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
           {wedding.registry.map((item) => (
             <Grid key={item.name} size={{ xs: 12, md: 4 }}>
               <Paper sx={{ p: 3, height: '100%' }}>
@@ -419,7 +419,7 @@ function GuestbookPage() {
         <Typography variant="h6">Share a memory, a toast, or a message for the wedding weekend.</Typography>
       </PageHeader>
       <Section title="Write A Message">
-        <Paper component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 820 }}>
+        <Paper component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 820, mx: 'auto' }}>
           <Stack spacing={2}>
             {message && <Alert severity="info">{message}</Alert>}
             {status === 'saved' && <Alert severity="success">Message posted.</Alert>}
@@ -495,7 +495,7 @@ function AdminPage() {
         <Typography variant="h6">Review RSVP, save-the-date, and guestbook submissions.</Typography>
       </PageHeader>
       <Section title="Submissions">
-        <Paper sx={{ p: { xs: 2, md: 4 } }}>
+        <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1120, mx: 'auto' }}>
           <Stack spacing={2.5}>
             {firebaseMessage() && <Alert severity="info">{firebaseMessage()}</Alert>}
             {error && <Alert severity="error">{error}</Alert>}
