@@ -21,6 +21,8 @@ import {
   TextField,
   Toolbar,
   Tooltip,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import CelebrationIcon from '@mui/icons-material/Celebration';
@@ -616,103 +618,184 @@ function RsvpForm() {
     }
   };
 
+  const updateResponse = (guest: InvitationGuest, field: 'wedding' | 'welcomeEvent', value: Attendance | null) => {
+    if (!value) return;
+    setResponses({
+      ...responses,
+      [guest.id]: {
+        name: guest.name,
+        wedding: responses[guest.id]?.wedding ?? 'yes',
+        welcomeEvent: responses[guest.id]?.welcomeEvent ?? 'yes',
+        [field]: value,
+      },
+    });
+  };
+
+  const responseList = invitation ? invitation.guests.map((guest) => responses[guest.id] ?? {
+    name: guest.name,
+    wedding: 'yes' as Attendance,
+    welcomeEvent: 'yes' as Attendance,
+  }) : [];
+  const weddingYes = responseList.filter((response) => response.wedding === 'yes').length;
+  const welcomeYes = responseList.filter((response) => response.welcomeEvent === 'yes').length;
+  const activeStep = invitation ? 2 : 0;
+
   return (
-    <Paper className="form-panel" sx={{ p: { xs: 2, md: 4 }, maxWidth: 900, mx: 'auto' }}>
-      <Stack spacing={2}>
+    <Paper className="form-panel rsvp-panel" sx={{ p: { xs: 2, md: 4 }, maxWidth: 980, mx: 'auto' }}>
+      <Stack spacing={3}>
         {message && <Alert severity="info">{message}</Alert>}
-        <Box component="form" onSubmit={searchByName}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <TextField required fullWidth label="Search a name on your invitation" value={searchName} onChange={(event) => setSearchName(event.target.value)} />
-            <Button type="submit" variant="contained" disabled={searchStatus === 'loading'} sx={{ minWidth: 150 }}>
-              {searchStatus === 'loading' ? 'Searching' : 'Find Invitation'}
-            </Button>
-          </Stack>
-        </Box>
-        <Box component="form" onSubmit={searchByEmail}>
-          <Stack spacing={1}>
-            <Typography variant="overline" color="text.secondary">Already RSVP'd?</Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <TextField required fullWidth type="email" label="Edit using RSVP contact email" value={editEmail} onChange={(event) => setEditEmail(event.target.value)} />
-              <Button type="submit" variant="outlined" disabled={searchStatus === 'loading'} sx={{ minWidth: 150 }}>
-                Edit RSVP
-              </Button>
+
+        <Stack className="rsvp-steps" direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          {['Find invitation', 'Respond for each guest', 'Confirm contact'].map((label, index) => (
+            <Chip
+              key={label}
+              color={index <= activeStep ? 'primary' : 'default'}
+              variant={index <= activeStep ? 'filled' : 'outlined'}
+              label={`${index + 1}. ${label}`}
+            />
+          ))}
+        </Stack>
+
+        {!invitation && (
+          <Box component="form" onSubmit={searchByName}>
+            <Stack spacing={1.5}>
+              <Box>
+                <Typography variant="h5">Find your invitation</Typography>
+                <Typography color="text.secondary">Search your first or last name, then choose your household if more than one invitation matches.</Typography>
+              </Box>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField required fullWidth label="First or last name" value={searchName} onChange={(event) => setSearchName(event.target.value)} />
+                <Button type="submit" variant="contained" disabled={searchStatus === 'loading'} sx={{ minWidth: 170 }}>
+                  {searchStatus === 'loading' ? 'Searching' : 'Find Invitation'}
+                </Button>
+              </Stack>
             </Stack>
-          </Stack>
-        </Box>
-        {lookupMatches.length > 1 && (
-          <Alert severity="info">
+          </Box>
+        )}
+
+        {!invitation && (
+          <Paper variant="outlined" className="rsvp-help-panel" sx={{ p: 2 }}>
             <Stack spacing={1}>
-              <Typography>Multiple invitations matched that name. Choose the correct invitation.</Typography>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Already RSVP'd?</Typography>
+              <Typography color="text.secondary">
+                The easiest way to make changes is the update link in your confirmation email.
+              </Typography>
+              <Box component="form" onSubmit={searchByEmail}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                  <TextField required fullWidth type="email" label="RSVP contact email" value={editEmail} onChange={(event) => setEditEmail(event.target.value)} />
+                  <Button type="submit" variant="outlined" disabled={searchStatus === 'loading'} sx={{ minWidth: 150 }}>
+                    Edit RSVP
+                  </Button>
+                </Stack>
+              </Box>
+            </Stack>
+          </Paper>
+        )}
+
+        {lookupMatches.length > 1 && !invitation && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={1.5}>
+              <Typography variant="h6">Choose your invitation</Typography>
+              <Typography color="text.secondary">More than one invitation matched that name.</Typography>
+              <Stack spacing={1}>
                 {lookupMatches.map((match) => (
-                  <Button key={match.invitationId} variant="outlined" onClick={() => loadInvitation(match.invitationId, 'new')}>
+                  <Button key={match.invitationId} variant="outlined" onClick={() => loadInvitation(match.invitationId, 'new')} sx={{ justifyContent: 'flex-start' }}>
                     {match.partyName}
                   </Button>
                 ))}
               </Stack>
             </Stack>
-          </Alert>
+          </Paper>
         )}
-        {nameSearchNeedsEmail && <Alert severity="info">This invitation already has an RSVP. To make changes, use the contact email submitted with the RSVP.</Alert>}
-        {searchStatus === 'loaded' && !invitation && lookupMatches.length === 0 && !nameSearchNeedsEmail && <Alert severity="warning">No invitation found. For a first RSVP, search a name from the invitation. To edit, use the email submitted with the RSVP.</Alert>}
+
+        {nameSearchNeedsEmail && <Alert severity="info">This invitation already has an RSVP. To make changes, use the update link in the confirmation email, or enter the RSVP contact email above.</Alert>}
+        {searchStatus === 'loaded' && !invitation && lookupMatches.length === 0 && !nameSearchNeedsEmail && <Alert severity="warning">No invitation found. Try a first or last name exactly as it appears on the invitation.</Alert>}
         {searchStatus === 'error' && <Alert severity="error">Unable to search invitations right now.</Alert>}
-        {status === 'saved' && <Alert severity="success">RSVP received.</Alert>}
+        {status === 'saved' && <Alert severity="success">You're all set. A confirmation email with an update link will be sent to the contact email.</Alert>}
         {status === 'error' && <Alert severity="error">Unable to submit right now. Check Firebase configuration.</Alert>}
         {invitation && (
           <Box component="form" onSubmit={submit}>
-            <Stack spacing={2.5}>
-              <Alert severity="info">
-                Invitation found for {invitation.partyName}. {existingRsvpId ? 'Existing RSVP loaded. You can update it below.' : 'Please respond for each guest below.'}
-              </Alert>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField required fullWidth type="email" label="Contact email" value={email} onChange={(event) => setEmail(event.target.value)} />
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField fullWidth label="Phone for text updates" value={phone} onChange={(event) => setPhone(event.target.value)} />
-                </Grid>
-              </Grid>
-              {invitation.guests.map((guest) => (
-                <Paper key={guest.id} variant="outlined" sx={{ p: 2 }}>
-                  <Grid container spacing={2} sx={{ alignItems: 'center' }}>
-                    <Grid size={{ xs: 12, md: 4 }}>
+            <Stack spacing={3}>
+              <Paper variant="outlined" className="rsvp-found-card" sx={{ p: 2.5 }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary">Invitation</Typography>
+                    <Typography variant="h5">{invitation.partyName}</Typography>
+                  </Box>
+                  <Chip color={existingRsvpId ? 'secondary' : 'primary'} label={existingRsvpId ? 'Updating RSVP' : 'New RSVP'} />
+                </Stack>
+              </Paper>
+
+              <Stack spacing={1}>
+                <Typography variant="h5">Wedding RSVP</Typography>
+                <Typography color="text.secondary">Please answer for each person so we can give catering an accurate count.</Typography>
+                {invitation.guests.map((guest) => (
+                  <Paper key={`wedding-${guest.id}`} variant="outlined" className="guest-response-row" sx={{ p: 2 }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
                       <Typography variant="h6">{guest.name}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                      <TextField
-                        select
-                        fullWidth
-                        label="Wedding"
+                      <ToggleButtonGroup
+                        exclusive
+                        color="primary"
                         value={responses[guest.id]?.wedding ?? 'yes'}
-                        onChange={(event) => setResponses({
-                          ...responses,
-                          [guest.id]: { ...responses[guest.id], name: guest.name, wedding: event.target.value as Attendance },
-                        })}
+                        onChange={(_, value) => updateResponse(guest, 'wedding', value)}
+                        aria-label={`${guest.name} wedding RSVP`}
                       >
-                        <MenuItem value="yes">Attending</MenuItem>
-                        <MenuItem value="no">Not attending</MenuItem>
-                      </TextField>
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                      <TextField
-                        select
-                        fullWidth
-                        label="Welcome event"
+                        <ToggleButton value="yes">Attending</ToggleButton>
+                        <ToggleButton value="no">Not attending</ToggleButton>
+                      </ToggleButtonGroup>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+
+              <Stack spacing={1}>
+                <Typography variant="h5">Welcome Event</Typography>
+                <Typography color="text.secondary">Please answer for the welcome event too. Location and time are still TBD.</Typography>
+                {invitation.guests.map((guest) => (
+                  <Paper key={`welcome-${guest.id}`} variant="outlined" className="guest-response-row" sx={{ p: 2 }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
+                      <Typography variant="h6">{guest.name}</Typography>
+                      <ToggleButtonGroup
+                        exclusive
+                        color="primary"
                         value={responses[guest.id]?.welcomeEvent ?? 'yes'}
-                        onChange={(event) => setResponses({
-                          ...responses,
-                          [guest.id]: { ...responses[guest.id], name: guest.name, welcomeEvent: event.target.value as Attendance },
-                        })}
+                        onChange={(_, value) => updateResponse(guest, 'welcomeEvent', value)}
+                        aria-label={`${guest.name} welcome event RSVP`}
                       >
-                        <MenuItem value="yes">Attending</MenuItem>
-                        <MenuItem value="no">Not attending</MenuItem>
-                      </TextField>
+                        <ToggleButton value="yes">Attending</ToggleButton>
+                        <ToggleButton value="no">Not attending</ToggleButton>
+                      </ToggleButtonGroup>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+
+              <Stack spacing={2}>
+                <Typography variant="h5">Confirmation</Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField required fullWidth type="email" label="Email for confirmation" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField fullWidth label="Phone for future text updates" value={phone} onChange={(event) => setPhone(event.target.value)} />
+                  </Grid>
+                </Grid>
+                <Paper variant="outlined" className="rsvp-summary" sx={{ p: 2 }}>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Typography variant="overline" color="text.secondary">Wedding</Typography>
+                      <Typography variant="h5">{weddingYes} attending, {responseList.length - weddingYes} not attending</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Typography variant="overline" color="text.secondary">Welcome event</Typography>
+                      <Typography variant="h5">{welcomeYes} attending, {responseList.length - welcomeYes} not attending</Typography>
                     </Grid>
                   </Grid>
                 </Paper>
-              ))}
+              </Stack>
+
               <Button type="submit" variant="contained" size="large" disabled={status === 'saving'} endIcon={<SendIcon />}>
-                {status === 'saving' ? 'Submitting' : 'Submit RSVP'}
+                {status === 'saving' ? 'Submitting' : existingRsvpId ? 'Update RSVP' : 'Submit RSVP'}
               </Button>
             </Stack>
           </Box>

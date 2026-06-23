@@ -301,6 +301,50 @@ pre {
   transform: none;
 }
 
+.rsvp-panel .MuiToggleButtonGroup-root {
+  flex-shrink: 0;
+  background: rgba(255, 253, 248, 0.72);
+  border-radius: 8px;
+}
+
+.rsvp-panel .MuiToggleButton-root {
+  min-width: 132px;
+  border-color: rgba(111, 50, 31, 0.18);
+  color: var(--ember);
+  font-weight: 800;
+  text-transform: none;
+}
+
+.rsvp-panel .MuiToggleButton-root.Mui-selected {
+  color: #fffaf2;
+  background: linear-gradient(135deg, var(--ember), var(--copper));
+}
+
+.rsvp-panel .MuiToggleButton-root.Mui-selected:hover {
+  background: linear-gradient(135deg, #5e2b1c, var(--copper));
+}
+
+.rsvp-steps {
+  padding-bottom: 2px;
+}
+
+.rsvp-help-panel,
+.rsvp-found-card,
+.guest-response-row,
+.rsvp-summary {
+  background: rgba(255, 253, 248, 0.72) !important;
+  border-color: rgba(111, 50, 31, 0.14) !important;
+}
+
+.guest-response-row {
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.guest-response-row:hover {
+  border-color: rgba(181, 121, 59, 0.34) !important;
+  background: rgba(255, 248, 236, 0.86) !important;
+}
+
 .countdown-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -349,6 +393,17 @@ pre {
 @media (max-width: 700px) {
   .countdown-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rsvp-panel .MuiToggleButtonGroup-root {
+    width: 100%;
+  }
+
+  .rsvp-panel .MuiToggleButton-root {
+    flex: 1;
+    min-width: 0;
+    padding-left: 8px;
+    padding-right: 8px;
   }
 
 }
