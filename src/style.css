@@ -296,18 +296,6 @@ pre {
   transition: background 180ms ease, transform 180ms ease;
 }
 
-.timeline-row::before {
-  content: '';
-  position: absolute;
-  left: 20px;
-  top: 26px;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--copper);
-  box-shadow: 0 0 0 6px rgba(181, 121, 59, 0.12);
-}
-
 .timeline-row:hover {
   background: rgba(231, 182, 109, 0.12);
   transform: none;
@@ -363,9 +351,6 @@ pre {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .timeline-row::before {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

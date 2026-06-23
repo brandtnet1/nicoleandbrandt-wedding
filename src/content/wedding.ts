@@ -13,6 +13,7 @@ export const wedding = {
     { name: 'Amazon', description: 'Kitchen, travel, and hosting favorites', url: 'https://www.amazon.com/wedding' },
   ],
   schedule: [
+    { time: 'Friday - TBD', title: 'Welcome event', detail: 'Location and time TBD.' },
     { time: '4:00 PM', title: 'Guest arrival', detail: 'Garden gates open with light refreshments.' },
     { time: '4:30 PM', title: 'Ceremony', detail: 'Outdoor ceremony in the west garden.' },
     { time: '5:15 PM', title: 'Cocktail hour', detail: 'Passed bites, bar service, and photos.' },
