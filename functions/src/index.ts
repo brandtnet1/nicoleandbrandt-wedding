@@ -137,7 +137,10 @@ export const sendRsvpConfirmation = onDocumentWritten(
   async (event) => {
     if (!event.data?.after.exists) return;
 
-    const rsvp = event.data.after.data() as RsvpRecord;
+    const rsvp = {
+      ...(event.data.after.data() as RsvpRecord),
+      invitationId: event.params.invitationId,
+    };
     if (!rsvp.contactEmail || !Array.isArray(rsvp.responses)) {
       logger.warn('Skipping RSVP confirmation because required fields are missing.', {
         invitationId: event.params.invitationId,
