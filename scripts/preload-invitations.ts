@@ -17,6 +17,21 @@ function normalizeName(name: string) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+function searchTermsForName(name: string) {
+  const normalized = normalizeName(name);
+  const tokens = normalized.split('-').filter(Boolean);
+  const bases = new Set([normalized, ...tokens]);
+  const terms = new Set<string>();
+
+  bases.forEach((base) => {
+    for (let length = 2; length <= base.length; length += 1) {
+      terms.add(base.slice(0, length));
+    }
+  });
+
+  return terms;
+}
+
 function clean(value: string | undefined) {
   return (value ?? '').replace(/\s+/g, ' ').trim();
 }
@@ -52,8 +67,9 @@ if (!dryRun && getApps().length === 0) {
 
 const rows = parseTsv(readFileSync(inputPath, 'utf8'));
 const db = dryRun ? null : getFirestore();
-const batch = db?.batch();
+const writer = db?.bulkWriter();
 const lookupNames = new Map<string, LookupMatch[]>();
+const searchTerms = new Map<string, LookupMatch[]>();
 const invitationIds = new Set<string>();
 let guestCount = 0;
 
@@ -81,7 +97,7 @@ rows.forEach((row, rowIndex) => {
   const guests = names.map((name, index) => ({ id: `${index + 1}`, name }));
   guestCount += guests.length;
 
-  batch?.set(db.collection('invitations').doc(invitationId), {
+  writer?.set(db.collection('invitations').doc(invitationId), {
     partyName,
     guests,
     envelopeName,
@@ -111,12 +127,18 @@ rows.forEach((row, rowIndex) => {
       ...(lookupNames.get(normalized) ?? []),
       { invitationId, guestName: guest.name, partyName },
     ]);
+    searchTermsForName(guest.name).forEach((term) => {
+      searchTerms.set(term, [
+        ...(searchTerms.get(term) ?? []),
+        { invitationId, guestName: guest.name, partyName },
+      ]);
+    });
   });
 });
 
 lookupNames.forEach((matches, normalized) => {
   const [firstMatch] = matches;
-  batch?.set(db.collection('inviteLookups').doc(normalized), {
+  writer?.set(db.collection('inviteLookups').doc(normalized), {
     invitationId: matches.length === 1 ? firstMatch.invitationId : null,
     guestName: matches.length === 1 ? firstMatch.guestName : null,
     partyName: matches.length === 1 ? firstMatch.partyName : null,
@@ -126,8 +148,21 @@ lookupNames.forEach((matches, normalized) => {
   }, { merge: true });
 });
 
-await batch?.commit();
+searchTerms.forEach((matches, term) => {
+  const uniqueMatches = Array.from(
+    new Map(matches.map((match) => [`${match.invitationId}:${match.guestName}`, match])).values(),
+  ).slice(0, 12);
+
+  writer?.set(db.collection('inviteSearch').doc(term), {
+    matches: uniqueMatches,
+    updatedAt: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+});
+
+await writer?.close();
 
 console.log(`${dryRun ? 'Validated' : 'Preloaded'} ${rows.length} invitation groups.`);
 console.log(`${dryRun ? 'Validated' : 'Preloaded'} ${guestCount} invited guest records.`);
 console.log(`${dryRun ? 'Validated' : 'Wrote'} ${lookupNames.size} searchable name lookups.`);
+console.log(`${dryRun ? 'Validated' : 'Wrote'} ${searchTerms.size} partial search terms.`);

@@ -78,6 +78,12 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /inviteSearch/{term} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if isAdmin();
+    }
+
     match /rsvpEmailLookups/{email} {
       allow get: if true;
       allow list, delete: if isAdmin();

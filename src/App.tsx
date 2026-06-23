@@ -102,6 +102,10 @@ function normalizeName(name: string) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+function uniqueMatches(matches: LookupMatch[]) {
+  return Array.from(new Map(matches.map((match) => [`${match.invitationId}:${match.guestName}`, match])).values());
+}
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -441,6 +445,15 @@ function RsvpForm() {
       if (!db) throw new Error('Firebase is not configured.');
       const lookup = await getDoc(doc(db, 'inviteLookups', normalizeName(searchName)));
       if (!lookup.exists()) {
+        const searchDoc = await getDoc(doc(db, 'inviteSearch', normalizeName(searchName)));
+        const partialMatches = searchDoc.exists() && Array.isArray(searchDoc.data().matches)
+          ? uniqueMatches(searchDoc.data().matches as LookupMatch[])
+          : [];
+        if (partialMatches.length === 1) {
+          await loadInvitation(partialMatches[0].invitationId);
+          return;
+        }
+        setLookupMatches(partialMatches);
         setSearchStatus('loaded');
         return;
       }
