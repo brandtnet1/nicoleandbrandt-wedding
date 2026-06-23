@@ -41,6 +41,8 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  startAt,
+  endAt,
   writeBatch,
 } from 'firebase/firestore';
 import {
@@ -104,6 +106,20 @@ function normalizeName(name: string) {
 
 function uniqueMatches(matches: LookupMatch[]) {
   return Array.from(new Map(matches.map((match) => [`${match.invitationId}:${match.guestName}`, match])).values());
+}
+
+async function searchInvitationNames(term: string) {
+  if (!db) throw new Error('Firebase is not configured.');
+  const normalized = normalizeName(term);
+  if (normalized.length < 2) return [];
+  const snapshot = await getDocs(query(
+    collection(db, 'inviteNameSearch'),
+    orderBy('searchKey'),
+    startAt(normalized),
+    endAt(`${normalized}\uf8ff`),
+    limit(12),
+  ));
+  return uniqueMatches(snapshot.docs.map((document) => document.data() as LookupMatch));
 }
 
 function normalizeEmail(email: string) {
@@ -445,10 +461,7 @@ function RsvpForm() {
       if (!db) throw new Error('Firebase is not configured.');
       const lookup = await getDoc(doc(db, 'inviteLookups', normalizeName(searchName)));
       if (!lookup.exists()) {
-        const searchDoc = await getDoc(doc(db, 'inviteSearch', normalizeName(searchName)));
-        const partialMatches = searchDoc.exists() && Array.isArray(searchDoc.data().matches)
-          ? uniqueMatches(searchDoc.data().matches as LookupMatch[])
-          : [];
+        const partialMatches = await searchInvitationNames(searchName);
         if (partialMatches.length === 1) {
           await loadInvitation(partialMatches[0].invitationId);
           return;

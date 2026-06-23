@@ -78,9 +78,9 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    match /inviteSearch/{term} {
-      allow get: if true;
-      allow list: if false;
+    match /inviteNameSearch/{id} {
+      allow get: if false;
+      allow list: if request.query.limit <= 12;
       allow create, update, delete: if isAdmin();
     }
 
