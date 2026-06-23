@@ -1,14 +1,10 @@
 import { logger } from 'firebase-functions';
-import { defineSecret, defineString } from 'firebase-functions/params';
+import { defineSecret } from 'firebase-functions/params';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 
 const resendApiKey = defineSecret('RESEND_API_KEY');
-const confirmationFrom = defineString('CONFIRMATION_FROM', {
-  default: 'Nicole & Brandt <rsvp@nicoleandbrandt.com>',
-});
-const confirmationReplyTo = defineString('CONFIRMATION_REPLY_TO', {
-  default: 'namoeller16@gmail.com',
-});
+const confirmationFrom = 'Nicole & Brandt <rsvp@nicoleandbrandt.com>';
+const confirmationReplyTo = 'namoeller16@gmail.com';
 
 type Attendance = 'yes' | 'no';
 type RsvpResponse = {
@@ -109,9 +105,9 @@ async function sendResendEmail(rsvp: RsvpRecord, apiKey: string) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: confirmationFrom.value(),
+      from: confirmationFrom,
       to: [rsvp.contactEmail],
-      reply_to: confirmationReplyTo.value(),
+      reply_to: confirmationReplyTo,
       subject: "Nicole & Brandt wedding RSVP confirmation",
       text: textBody(rsvp),
       html: htmlBody(rsvp),
