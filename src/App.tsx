@@ -148,6 +148,10 @@ function uniqueMatches(matches: LookupMatch[]) {
   return Array.from(new Map(matches.map((match) => [`${match.invitationId}:${match.guestName}`, match])).values());
 }
 
+function uniqueInvitationMatches(matches: LookupMatch[]) {
+  return Array.from(new Map(matches.map((match) => [match.invitationId, match])).values());
+}
+
 async function searchInvitationNames(term: string) {
   if (!db) throw new Error('Firebase is not configured.');
   const normalized = normalizeName(term);
@@ -159,7 +163,7 @@ async function searchInvitationNames(term: string) {
     endAt(`${normalized}\uf8ff`),
     limit(12),
   ));
-  return uniqueMatches(snapshot.docs.map((document) => document.data() as LookupMatch));
+  return uniqueInvitationMatches(snapshot.docs.map((document) => document.data() as LookupMatch));
 }
 
 function normalizeEmail(email: string) {
@@ -460,7 +464,7 @@ function RsvpForm() {
       match,
       hasRsvp: await hasExistingRsvp(match.invitationId),
     })));
-    return uniqueMatches(availability.filter((item) => !item.hasRsvp).map((item) => item.match));
+    return uniqueInvitationMatches(availability.filter((item) => !item.hasRsvp).map((item) => item.match));
   };
 
   const loadInvitation = async (invitationId: string, mode: 'new' | 'edit' = 'edit') => {
