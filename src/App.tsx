@@ -67,7 +67,7 @@ type Invitation = {
 };
 type LookupMatch = { invitationId: string; guestName: string; partyName: string };
 type Attendance = 'yes' | 'no';
-type RsvpResponse = { name: string; wedding: Attendance; welcomeEvent: Attendance; meal: string };
+type RsvpResponse = { name: string; wedding: Attendance; welcomeEvent: Attendance };
 type GuestResponse = Record<string, RsvpResponse>;
 type RsvpRecord = {
   id: string;
@@ -453,7 +453,7 @@ function RsvpForm() {
         const existing = rsvpData.responses?.find((response) => response.name === guest.name);
         return [
           guest.id,
-          existing ?? { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
+          existing ? { name: existing.name, wedding: existing.wedding, welcomeEvent: existing.welcomeEvent } : { name: guest.name, wedding: 'yes', welcomeEvent: 'yes' },
         ];
       })));
     } else {
@@ -463,7 +463,7 @@ function RsvpForm() {
       setNotes('');
       setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => [
         guest.id,
-        { name: guest.name, wedding: 'yes', welcomeEvent: 'yes', meal: '' },
+        { name: guest.name, wedding: 'yes', welcomeEvent: 'yes' },
       ])));
     }
     setSearchStatus('loaded');
@@ -613,10 +613,10 @@ function RsvpForm() {
               {invitation.guests.map((guest) => (
                 <Paper key={guest.id} variant="outlined" sx={{ p: 2 }}>
                   <Grid container spacing={2} sx={{ alignItems: 'center' }}>
-                    <Grid size={{ xs: 12, md: 3 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                       <Typography variant="h6">{guest.name}</Typography>
                     </Grid>
-                    <Grid size={{ xs: 12, md: 3 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                       <TextField
                         select
                         fullWidth
@@ -631,7 +631,7 @@ function RsvpForm() {
                         <MenuItem value="no">Not attending</MenuItem>
                       </TextField>
                     </Grid>
-                    <Grid size={{ xs: 12, md: 3 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                       <TextField
                         select
                         fullWidth
@@ -645,17 +645,6 @@ function RsvpForm() {
                         <MenuItem value="yes">Attending</MenuItem>
                         <MenuItem value="no">Not attending</MenuItem>
                       </TextField>
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 3 }}>
-                      <TextField
-                        fullWidth
-                        label="Meal preference"
-                        value={responses[guest.id]?.meal ?? ''}
-                        onChange={(event) => setResponses({
-                          ...responses,
-                          [guest.id]: { ...responses[guest.id], name: guest.name, meal: event.target.value },
-                        })}
-                      />
                     </Grid>
                   </Grid>
                 </Paper>
