@@ -4,7 +4,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 
 const resendApiKey = defineSecret('RESEND_API_KEY');
 const confirmationFrom = 'Nicole & Brandt <rsvp@nicoleandbrandt.com>';
-const confirmationReplyTo = 'namoeller16@gmail.com';
+const confirmationReplyTo = 'rsvp@nicoleandbrandt.com';
 
 type Attendance = 'yes' | 'no';
 type RsvpResponse = {
