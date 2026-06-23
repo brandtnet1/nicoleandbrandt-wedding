@@ -1097,7 +1097,11 @@ function AdminPage() {
 }
 
 function RsvpAdminTable({ rows }: { rows: RsvpRecord[] }) {
-  const statusLabel = (value: Attendance) => value === 'yes' ? 'Attending' : 'Not attending';
+  const responseLabel = (response: RsvpResponse) => {
+    const wedding = response.wedding === 'yes' ? 'Wedding yes' : 'Wedding no';
+    const welcome = response.welcomeEvent === 'yes' ? 'Welcome yes' : 'Welcome no';
+    return `${response.name} - ${wedding} / ${welcome}`;
+  };
 
   return (
     <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 620 }}>
@@ -1106,7 +1110,7 @@ function RsvpAdminTable({ rows }: { rows: RsvpRecord[] }) {
           <TableRow>
             <TableCell>Invitation</TableCell>
             <TableCell>Contact</TableCell>
-            <TableCell>Guest Responses</TableCell>
+            <TableCell>Responses</TableCell>
             <TableCell>Totals</TableCell>
           </TableRow>
         </TableHead>
@@ -1130,15 +1134,15 @@ function RsvpAdminTable({ rows }: { rows: RsvpRecord[] }) {
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ minWidth: 360 }}>
-                  <Stack spacing={1}>
+                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
                     {(row.responses ?? []).map((response) => (
-                      <Paper key={`${row.id}-${response.name}`} variant="outlined" sx={{ p: 1 }}>
-                        <Typography sx={{ fontWeight: 700 }}>{response.name}</Typography>
-                        <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap', rowGap: 0.75 }}>
-                          <Chip size="small" color={response.wedding === 'yes' ? 'success' : 'default'} label={`Wedding: ${statusLabel(response.wedding)}`} />
-                          <Chip size="small" color={response.welcomeEvent === 'yes' ? 'success' : 'default'} label={`Welcome: ${statusLabel(response.welcomeEvent)}`} />
-                        </Stack>
-                      </Paper>
+                      <Chip
+                        key={`${row.id}-${response.name}`}
+                        label={responseLabel(response)}
+                        size="small"
+                        color={response.wedding === 'yes' ? 'success' : 'default'}
+                        variant={response.welcomeEvent === 'yes' ? 'filled' : 'outlined'}
+                      />
                     ))}
                   </Stack>
                 </TableCell>
