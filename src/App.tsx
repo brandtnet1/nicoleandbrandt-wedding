@@ -208,7 +208,9 @@ function App() {
 
 function HomeOrRsvp() {
   const location = useLocation();
-  return new URLSearchParams(location.search).has('rsvp') ? <RsvpPage /> : <Home />;
+  return new URLSearchParams(location.search).has('rsvp') || location.hash.startsWith('#/rsvp/')
+    ? <RsvpPage />
+    : <Home />;
 }
 
 function Nav() {
@@ -452,7 +454,10 @@ function RsvpForm() {
   const { invitationId } = useParams();
   const location = useLocation();
   const queryInvitationId = new URLSearchParams(location.search).get('rsvp') ?? undefined;
-  const directInvitationId = invitationId ?? queryInvitationId;
+  const hashInvitationId = location.hash.startsWith('#/rsvp/')
+    ? decodeURIComponent(location.hash.replace('#/rsvp/', '').split('?')[0] ?? '')
+    : undefined;
+  const directInvitationId = invitationId ?? queryInvitationId ?? hashInvitationId;
   const [status, setStatus] = useState<Status>('idle');
   const [searchStatus, setSearchStatus] = useState<LoadStatus>('idle');
   const [searchName, setSearchName] = useState('');
