@@ -96,6 +96,10 @@ type RsvpRecord = {
   contactPhone?: string;
   responses: RsvpResponse[];
 };
+type GuestbookRecord = GuestRecord & {
+  name?: string;
+  message?: string;
+};
 
 const navItems = [
   { label: 'Home', path: '/' },
@@ -1074,7 +1078,9 @@ function AdminPage() {
                     </Stack>
                     {loadStatus === 'loading' && <Alert severity="info">Loading {collectionLabel}...</Alert>}
                     {loadStatus === 'loaded' && rows.length === 0 && <Alert severity="info">No {collectionLabel} records found.</Alert>}
-                    {rows.length > 0 && (activeCollection === 'invitations' ? <InvitationAdminTable rows={rows as InvitationAdminRecord[]} /> : <AdminTable rows={rows} />)}
+                    {rows.length > 0 && activeCollection === 'invitations' && <InvitationAdminTable rows={rows as InvitationAdminRecord[]} />}
+                    {rows.length > 0 && activeCollection === 'rsvps' && <RsvpAdminTable rows={rows as RsvpRecord[]} />}
+                    {rows.length > 0 && activeCollection === 'guestbook' && <GuestbookAdminTable rows={rows as GuestbookRecord[]} />}
                   </>
                 )}
               </>
@@ -1083,6 +1089,98 @@ function AdminPage() {
         </Paper>
       </Section>
     </>
+  );
+}
+
+function RsvpAdminTable({ rows }: { rows: RsvpRecord[] }) {
+  const statusLabel = (value: Attendance) => value === 'yes' ? 'Attending' : 'Not attending';
+
+  return (
+    <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 620 }}>
+      <Table size="small" stickyHeader>
+        <TableHead>
+          <TableRow>
+            <TableCell>Invitation</TableCell>
+            <TableCell>Contact</TableCell>
+            <TableCell>Guest Responses</TableCell>
+            <TableCell>Totals</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => {
+            const weddingYes = (row.responses ?? []).filter((response) => response.wedding === 'yes').length;
+            const welcomeYes = (row.responses ?? []).filter((response) => response.welcomeEvent === 'yes').length;
+
+            return (
+              <TableRow key={row.id} hover sx={{ verticalAlign: 'top' }}>
+                <TableCell sx={{ minWidth: 200 }}>
+                  <Stack spacing={0.5}>
+                    <Typography sx={{ fontWeight: 800 }}>{row.invitationName || row.id}</Typography>
+                    <Typography variant="caption" color="text.secondary">{row.invitationId || row.id}</Typography>
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ minWidth: 220 }}>
+                  <Stack spacing={0.5}>
+                    <Typography>{row.contactEmail}</Typography>
+                    {row.contactPhone && <Typography color="text.secondary">{row.contactPhone}</Typography>}
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ minWidth: 360 }}>
+                  <Stack spacing={1}>
+                    {(row.responses ?? []).map((response) => (
+                      <Paper key={`${row.id}-${response.name}`} variant="outlined" sx={{ p: 1 }}>
+                        <Typography sx={{ fontWeight: 700 }}>{response.name}</Typography>
+                        <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap', rowGap: 0.75 }}>
+                          <Chip size="small" color={response.wedding === 'yes' ? 'success' : 'default'} label={`Wedding: ${statusLabel(response.wedding)}`} />
+                          <Chip size="small" color={response.welcomeEvent === 'yes' ? 'success' : 'default'} label={`Welcome: ${statusLabel(response.welcomeEvent)}`} />
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ minWidth: 150 }}>
+                  <Stack spacing={0.5}>
+                    <Typography variant="caption">Wedding: {weddingYes}/{row.responses?.length ?? 0}</Typography>
+                    <Typography variant="caption">Welcome: {welcomeYes}/{row.responses?.length ?? 0}</Typography>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+function GuestbookAdminTable({ rows }: { rows: GuestbookRecord[] }) {
+  return (
+    <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 620 }}>
+      <Table size="small" stickyHeader>
+        <TableHead>
+          <TableRow>
+            <TableCell>Name</TableCell>
+            <TableCell>Message</TableCell>
+            <TableCell>Record</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.id} hover sx={{ verticalAlign: 'top' }}>
+              <TableCell sx={{ minWidth: 180 }}>
+                <Typography sx={{ fontWeight: 800 }}>{row.name}</Typography>
+              </TableCell>
+              <TableCell sx={{ minWidth: 420 }}>
+                <Typography sx={{ whiteSpace: 'pre-wrap' }}>{row.message}</Typography>
+              </TableCell>
+              <TableCell sx={{ minWidth: 180 }}>
+                <Typography variant="caption" color="text.secondary">{row.id}</Typography>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }
 
@@ -1136,35 +1234,6 @@ function InvitationAdminTable({ rows }: { rows: InvitationAdminRecord[] }) {
                 </Stack>
               </TableCell>
               <TableCell sx={{ minWidth: 220 }}>{row.notes}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-}
-
-function AdminTable({ rows }: { rows: GuestRecord[] }) {
-  const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row)))).filter((key) => key !== 'createdAt');
-  const formatCell = (value: unknown) => {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
-  };
-  return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            {columns.map((column) => <TableCell key={column}>{column}</TableCell>)}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              {columns.map((column) => (
-                <TableCell key={column}>{formatCell(row[column])}</TableCell>
-              ))}
             </TableRow>
           ))}
         </TableBody>
