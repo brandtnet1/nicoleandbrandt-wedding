@@ -38,6 +38,7 @@ import {
   getDocs,
   getDoc,
   limit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -852,6 +853,55 @@ function AdminPage() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!db || !user || !hasAdminClaim) {
+      setDashboardStatus('idle');
+      return undefined;
+    }
+
+    setDashboardStatus('loading');
+    let invitationDocs: GuestRecord[] | null = null;
+    let rsvpDocs: RsvpRecord[] | null = null;
+
+    const updateDashboard = () => {
+      if (!invitationDocs || !rsvpDocs) return;
+      const weddingAttending = rsvpDocs.flatMap((rsvp) => rsvp.responses ?? []).filter((response) => response.wedding === 'yes').length;
+      const welcomeAttending = rsvpDocs.flatMap((rsvp) => rsvp.responses ?? []).filter((response) => response.welcomeEvent === 'yes').length;
+      const declinedWedding = rsvpDocs.flatMap((rsvp) => rsvp.responses ?? []).filter((response) => response.wedding === 'no').length;
+      setDashboard({
+        invited: invitationDocs.reduce((sum, document) => sum + (((document.guests ?? []) as unknown[]).length), 0),
+        invitations: invitationDocs.length,
+        respondedInvitations: rsvpDocs.length,
+        weddingAttending,
+        welcomeAttending,
+        declinedWedding,
+        missingInvitations: Math.max(0, invitationDocs.length - rsvpDocs.length),
+      });
+      setDashboardStatus('loaded');
+    };
+
+    const unsubscribeInvitations = onSnapshot(collection(db, 'invitations'), (snapshot) => {
+      invitationDocs = snapshot.docs.map((document) => ({ id: document.id, ...document.data() }));
+      updateDashboard();
+    }, (caught) => {
+      setDashboardStatus('error');
+      setError(caught.message);
+    });
+
+    const unsubscribeRsvps = onSnapshot(collection(db, 'rsvps'), (snapshot) => {
+      rsvpDocs = snapshot.docs.map((document) => ({ id: document.id, ...document.data() } as RsvpRecord));
+      updateDashboard();
+    }, (caught) => {
+      setDashboardStatus('error');
+      setError(caught.message);
+    });
+
+    return () => {
+      unsubscribeInvitations();
+      unsubscribeRsvps();
+    };
+  }, [hasAdminClaim, user]);
+
   const load = async (collectionName: string) => {
     setActiveCollection(collectionName);
     setLoadStatus('loading');
@@ -875,35 +925,6 @@ function AdminPage() {
       await signInWithPopup(auth, googleProvider);
     } catch (caught) {
       setError(authErrorMessage(caught));
-    }
-  };
-
-  const loadDashboard = async () => {
-    setDashboardStatus('loading');
-    setError('');
-    try {
-      if (!db) throw new Error('Firebase is not configured.');
-      const [invitationSnapshot, rsvpSnapshot] = await Promise.all([
-        getDocs(collection(db, 'invitations')),
-        getDocs(collection(db, 'rsvps')),
-      ]);
-      const rsvps = rsvpSnapshot.docs.map((document) => document.data() as RsvpRecord);
-      const weddingAttending = rsvps.flatMap((rsvp) => rsvp.responses ?? []).filter((response) => response.wedding === 'yes').length;
-      const welcomeAttending = rsvps.flatMap((rsvp) => rsvp.responses ?? []).filter((response) => response.welcomeEvent === 'yes').length;
-      const declinedWedding = rsvps.flatMap((rsvp) => rsvp.responses ?? []).filter((response) => response.wedding === 'no').length;
-      setDashboard({
-        invited: invitationSnapshot.docs.reduce((sum, document) => sum + (((document.data().guests ?? []) as unknown[]).length), 0),
-        invitations: invitationSnapshot.size,
-        respondedInvitations: rsvpSnapshot.size,
-        weddingAttending,
-        welcomeAttending,
-        declinedWedding,
-        missingInvitations: Math.max(0, invitationSnapshot.size - rsvpSnapshot.size),
-      });
-      setDashboardStatus('loaded');
-    } catch (caught) {
-      setDashboardStatus('error');
-      setError(caught instanceof Error ? caught.message : 'Unable to load dashboard.');
     }
   };
 
@@ -997,9 +1018,7 @@ function AdminPage() {
                       <Stack spacing={2}>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between' }}>
                           <Typography variant="h5">Dashboard</Typography>
-                          <Button variant="outlined" onClick={loadDashboard} disabled={dashboardStatus === 'loading'}>
-                            {dashboardStatus === 'loading' ? 'Loading' : 'Refresh dashboard'}
-                          </Button>
+                          <Chip color={dashboardStatus === 'error' ? 'error' : dashboardStatus === 'loaded' ? 'success' : 'default'} label={dashboardStatus === 'loaded' ? 'Live' : dashboardStatus === 'loading' ? 'Syncing' : 'Waiting'} />
                         </Stack>
                         <Grid container spacing={2}>
                           {[
