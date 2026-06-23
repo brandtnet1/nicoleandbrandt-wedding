@@ -76,7 +76,6 @@ type RsvpRecord = {
   contactEmail: string;
   contactPhone?: string;
   responses: RsvpResponse[];
-  notes?: string;
 };
 
 const navItems = [
@@ -423,7 +422,6 @@ function RsvpForm() {
   const [lookupMatches, setLookupMatches] = useState<LookupMatch[]>([]);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [notes, setNotes] = useState('');
   const [responses, setResponses] = useState<GuestResponse>({});
   const [existingRsvpId, setExistingRsvpId] = useState('');
   const [nameSearchNeedsEmail, setNameSearchNeedsEmail] = useState(false);
@@ -468,7 +466,6 @@ function RsvpForm() {
       setExistingRsvpId(rsvpDoc.id);
       setEmail(rsvpData.contactEmail ?? '');
       setPhone(rsvpData.contactPhone ?? '');
-      setNotes(rsvpData.notes ?? '');
       setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => {
         const existing = rsvpData.responses?.find((response) => response.name === guest.name);
         return [
@@ -480,7 +477,6 @@ function RsvpForm() {
       setExistingRsvpId('');
       setEmail('');
       setPhone('');
-      setNotes('');
       setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => [
         guest.id,
         { name: guest.name, wedding: 'yes', welcomeEvent: 'yes' },
@@ -565,7 +561,6 @@ function RsvpForm() {
         contactEmail: email,
         contactPhone: phone,
         responses: Object.values(responses),
-        notes,
         updatedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       }, { merge: true });
@@ -677,7 +672,6 @@ function RsvpForm() {
                   </Grid>
                 </Paper>
               ))}
-              <TextField fullWidth multiline minRows={3} label="Dietary needs or notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
               <Button type="submit" variant="contained" size="large" disabled={status === 'saving'} endIcon={<SendIcon />}>
                 {status === 'saving' ? 'Submitting' : 'Submit RSVP'}
               </Button>
