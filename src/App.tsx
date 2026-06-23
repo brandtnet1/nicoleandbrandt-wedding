@@ -60,6 +60,24 @@ type Status = 'idle' | 'saving' | 'saved' | 'error';
 type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 type GuestRecord = Record<string, unknown> & { id: string };
 type InvitationGuest = { id: string; name: string };
+type InvitationAdminRecord = GuestRecord & {
+  partyName?: string;
+  envelopeName?: string;
+  guests?: InvitationGuest[];
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  };
+  counts?: {
+    kids?: number | null;
+    invitedPeople?: number | null;
+    potentialPlusOnes?: number | null;
+  };
+  notes?: string;
+};
 type Invitation = {
   id: string;
   partyName: string;
@@ -1037,7 +1055,7 @@ function AdminPage() {
                     </Stack>
                     {loadStatus === 'loading' && <Alert severity="info">Loading {collectionLabel}...</Alert>}
                     {loadStatus === 'loaded' && rows.length === 0 && <Alert severity="info">No {collectionLabel} records found.</Alert>}
-                    {rows.length > 0 && <AdminTable rows={rows} />}
+                    {rows.length > 0 && (activeCollection === 'invitations' ? <InvitationAdminTable rows={rows as InvitationAdminRecord[]} /> : <AdminTable rows={rows} />)}
                   </>
                 )}
               </>
@@ -1046,6 +1064,64 @@ function AdminPage() {
         </Paper>
       </Section>
     </>
+  );
+}
+
+function InvitationAdminTable({ rows }: { rows: InvitationAdminRecord[] }) {
+  const formatAddress = (address: InvitationAdminRecord['address']) => {
+    if (!address) return '';
+    return [address.line1, address.line2, [address.city, address.state, address.zip].filter(Boolean).join(', ')]
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  return (
+    <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 620 }}>
+      <Table size="small" stickyHeader>
+        <TableHead>
+          <TableRow>
+            <TableCell>Invitation</TableCell>
+            <TableCell>Guests</TableCell>
+            <TableCell>Address</TableCell>
+            <TableCell>Counts</TableCell>
+            <TableCell>Notes</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.id} hover sx={{ verticalAlign: 'top' }}>
+              <TableCell sx={{ minWidth: 190 }}>
+                <Stack spacing={0.5}>
+                  <Typography sx={{ fontWeight: 800 }}>{row.partyName || row.envelopeName || row.id}</Typography>
+                  {row.envelopeName && row.envelopeName !== row.partyName && (
+                    <Typography variant="caption" color="text.secondary">{row.envelopeName}</Typography>
+                  )}
+                  <Typography variant="caption" color="text.secondary">{row.id}</Typography>
+                </Stack>
+              </TableCell>
+              <TableCell sx={{ minWidth: 260 }}>
+                <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
+                  {(row.guests ?? []).map((guest) => (
+                    <Chip key={`${row.id}-${guest.id}`} label={guest.name} size="small" />
+                  ))}
+                </Stack>
+              </TableCell>
+              <TableCell sx={{ whiteSpace: 'pre-line', minWidth: 220 }}>
+                {formatAddress(row.address)}
+              </TableCell>
+              <TableCell sx={{ minWidth: 150 }}>
+                <Stack spacing={0.5}>
+                  <Typography variant="caption">Guests: {row.guests?.length ?? 0}</Typography>
+                  <Typography variant="caption">Kids: {row.counts?.kids ?? '-'}</Typography>
+                  <Typography variant="caption">Plus ones: {row.counts?.potentialPlusOnes ?? '-'}</Typography>
+                </Stack>
+              </TableCell>
+              <TableCell sx={{ minWidth: 220 }}>{row.notes}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }
 
