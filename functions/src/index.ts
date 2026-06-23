@@ -52,7 +52,7 @@ function escapeHtml(value: string) {
 }
 
 function textBody(rsvp: RsvpRecord) {
-  const editUrl = `https://nicoleandbrandt.com/rsvp/${encodeURIComponent(rsvp.invitationId)}`;
+  const editUrl = `https://nicoleandbrandt.com/?rsvp=${encodeURIComponent(rsvp.invitationId)}`;
 
   return `Hi ${rsvp.invitationName},
 
@@ -73,7 +73,7 @@ Nicole & Brandt`;
 }
 
 function htmlBody(rsvp: RsvpRecord) {
-  const editUrl = `https://nicoleandbrandt.com/rsvp/${encodeURIComponent(rsvp.invitationId)}`;
+  const editUrl = `https://nicoleandbrandt.com/?rsvp=${encodeURIComponent(rsvp.invitationId)}`;
 
   return `
     <div style="font-family: Inter, Segoe UI, Arial, sans-serif; color: #2d2924; line-height: 1.5;">

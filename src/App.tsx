@@ -192,7 +192,7 @@ function App() {
       <Nav />
       <Box component="main" className="page-main">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<HomeOrRsvp />} />
           <Route path="/rsvp" element={<RsvpPage />} />
           <Route path="/rsvp/:invitationId" element={<RsvpPage />} />
           <Route path="/travel" element={<TravelPage />} />
@@ -204,6 +204,11 @@ function App() {
       <Footer />
     </Box>
   );
+}
+
+function HomeOrRsvp() {
+  const location = useLocation();
+  return new URLSearchParams(location.search).has('rsvp') ? <RsvpPage /> : <Home />;
 }
 
 function Nav() {
@@ -445,6 +450,9 @@ function RsvpPage() {
 
 function RsvpForm() {
   const { invitationId } = useParams();
+  const location = useLocation();
+  const queryInvitationId = new URLSearchParams(location.search).get('rsvp') ?? undefined;
+  const directInvitationId = invitationId ?? queryInvitationId;
   const [status, setStatus] = useState<Status>('idle');
   const [searchStatus, setSearchStatus] = useState<LoadStatus>('idle');
   const [searchName, setSearchName] = useState('');
@@ -517,14 +525,14 @@ function RsvpForm() {
   };
 
   useEffect(() => {
-    if (!invitationId) return;
+    if (!directInvitationId) return;
     setSearchStatus('loading');
     setStatus('idle');
     setInvitation(null);
     setLookupMatches([]);
     setNameSearchNeedsEmail(false);
-    loadInvitation(invitationId, 'edit').catch(() => setSearchStatus('error'));
-  }, [invitationId]);
+    loadInvitation(directInvitationId, 'edit').catch(() => setSearchStatus('error'));
+  }, [directInvitationId]);
 
   const searchByName = async (event: React.FormEvent) => {
     event.preventDefault();
