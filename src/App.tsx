@@ -104,6 +104,24 @@ function normalizeName(name: string) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+function searchKeysForName(name: string) {
+  const normalized = normalizeName(name);
+  const tokens = normalized.split('-').filter(Boolean);
+  const keys = new Set([normalized]);
+
+  if (tokens.length >= 2) {
+    const lastName = tokens[tokens.length - 1];
+    keys.add(lastName);
+    keys.add(`${lastName}-${tokens.slice(0, -1).join('-')}`);
+  }
+
+  return Array.from(keys).filter((key) => key.length >= 2);
+}
+
+function isSearchableGuestName(name: string) {
+  return !['guest', 'wife', 'kid', '& kid'].includes(name.trim().toLowerCase());
+}
+
 function uniqueMatches(matches: LookupMatch[]) {
   return Array.from(new Map(matches.map((match) => [`${match.invitationId}:${match.guestName}`, match])).values());
 }
@@ -880,14 +898,37 @@ function AdminPage() {
         guests,
         createdAt: serverTimestamp(),
       });
-      guestNames.forEach((name) => {
-        batch.set(doc(firestore, 'inviteLookups', normalizeName(name)), {
-          invitationId: invitationRef.id,
-          guestName: name,
-          partyName: inviteForm.partyName || guestNames.join(', '),
+      for (const name of guestNames) {
+        if (!isSearchableGuestName(name)) continue;
+        const normalizedName = normalizeName(name);
+        const partyName = inviteForm.partyName || guestNames.join(', ');
+        const match = { invitationId: invitationRef.id, guestName: name, partyName };
+        const lookupRef = doc(firestore, 'inviteLookups', normalizedName);
+        const existingLookup = await getDoc(lookupRef);
+        const existingMatches = existingLookup.exists() && Array.isArray(existingLookup.data().matches)
+          ? existingLookup.data().matches as LookupMatch[]
+          : [];
+        const matches = uniqueMatches([...existingMatches, match]);
+
+        batch.set(lookupRef, {
+          invitationId: matches.length === 1 ? invitationRef.id : null,
+          guestName: matches.length === 1 ? name : null,
+          partyName: matches.length === 1 ? partyName : null,
+          matches,
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
-      });
+        searchKeysForName(name).forEach((searchKey) => {
+          batch.set(doc(firestore, 'inviteNameSearch', `${searchKey}__${invitationRef.id}__${normalizedName}`), {
+            invitationId: invitationRef.id,
+            guestName: name,
+            partyName,
+            searchKey,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        });
+      }
       await batch.commit();
       setInviteForm({ partyName: '', guestNames: '' });
       setInviteStatus('saved');
