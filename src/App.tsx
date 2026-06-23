@@ -581,7 +581,7 @@ function RsvpForm() {
         responses: Object.values(responses),
         updatedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
-      }, { merge: true });
+      });
       batch.set(doc(db, 'rsvpEmailLookups', normalizeEmail(email)), {
         invitationId: invitation.id,
         contactEmail: normalizeEmail(email),
