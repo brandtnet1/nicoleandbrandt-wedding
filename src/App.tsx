@@ -63,6 +63,7 @@ type Invitation = {
   partyName: string;
   guests: InvitationGuest[];
 };
+type LookupMatch = { invitationId: string; guestName: string; partyName: string };
 type Attendance = 'yes' | 'no';
 type RsvpResponse = { name: string; wedding: Attendance; welcomeEvent: Attendance; meal: string };
 type GuestResponse = Record<string, RsvpResponse>;
@@ -381,6 +382,7 @@ function RsvpForm() {
   const [searchName, setSearchName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [lookupMatches, setLookupMatches] = useState<LookupMatch[]>([]);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
@@ -434,6 +436,7 @@ function RsvpForm() {
     setSearchStatus('loading');
     setStatus('idle');
     setInvitation(null);
+    setLookupMatches([]);
     try {
       if (!db) throw new Error('Firebase is not configured.');
       const lookup = await getDoc(doc(db, 'inviteLookups', normalizeName(searchName)));
@@ -441,7 +444,19 @@ function RsvpForm() {
         setSearchStatus('loaded');
         return;
       }
-      await loadInvitation(String(lookup.data().invitationId));
+      const lookupData = lookup.data();
+      const matches = Array.isArray(lookupData.matches) ? lookupData.matches as LookupMatch[] : [];
+      if (matches.length > 1) {
+        setLookupMatches(matches);
+        setSearchStatus('loaded');
+        return;
+      }
+      const invitationId = String(matches[0]?.invitationId ?? lookupData.invitationId ?? '');
+      if (!invitationId) {
+        setSearchStatus('loaded');
+        return;
+      }
+      await loadInvitation(invitationId);
     } catch {
       setSearchStatus('error');
     }
@@ -452,6 +467,7 @@ function RsvpForm() {
     setSearchStatus('loading');
     setStatus('idle');
     setInvitation(null);
+    setLookupMatches([]);
     try {
       if (!db) throw new Error('Firebase is not configured.');
       const lookup = await getDoc(doc(db, 'rsvpEmailLookups', normalizeEmail(editEmail)));
@@ -518,7 +534,21 @@ function RsvpForm() {
             </Stack>
           </Stack>
         </Box>
-        {searchStatus === 'loaded' && !invitation && <Alert severity="warning">No invitation found. For a first RSVP, search a name from the invitation. To edit, use the email submitted with the RSVP.</Alert>}
+        {lookupMatches.length > 1 && (
+          <Alert severity="info">
+            <Stack spacing={1}>
+              <Typography>Multiple invitations matched that name. Choose the correct invitation.</Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                {lookupMatches.map((match) => (
+                  <Button key={match.invitationId} variant="outlined" onClick={() => loadInvitation(match.invitationId)}>
+                    {match.partyName}
+                  </Button>
+                ))}
+              </Stack>
+            </Stack>
+          </Alert>
+        )}
+        {searchStatus === 'loaded' && !invitation && lookupMatches.length === 0 && <Alert severity="warning">No invitation found. For a first RSVP, search a name from the invitation. To edit, use the email submitted with the RSVP.</Alert>}
         {searchStatus === 'error' && <Alert severity="error">Unable to search invitations right now.</Alert>}
         {status === 'saved' && <Alert severity="success">RSVP received.</Alert>}
         {status === 'error' && <Alert severity="error">Unable to submit right now. Check Firebase configuration.</Alert>}
