@@ -52,6 +52,8 @@ function escapeHtml(value: string) {
 }
 
 function textBody(rsvp: RsvpRecord) {
+  const editUrl = `https://nicoleandbrandt.com/rsvp/${encodeURIComponent(rsvp.invitationId)}`;
+
   return `Hi ${rsvp.invitationName},
 
 Thank you for your RSVP for Nicole & Brandt's wedding.
@@ -64,12 +66,15 @@ Ceremony time: TBD
 Your responses:
 ${responseSummary(rsvp.responses)}
 
-You can update your RSVP by returning to https://nicoleandbrandt.com/rsvp and using this email address.
+You can update your RSVP here:
+${editUrl}
 
 Nicole & Brandt`;
 }
 
 function htmlBody(rsvp: RsvpRecord) {
+  const editUrl = `https://nicoleandbrandt.com/rsvp/${encodeURIComponent(rsvp.invitationId)}`;
+
   return `
     <div style="font-family: Inter, Segoe UI, Arial, sans-serif; color: #2d2924; line-height: 1.5;">
       <h1 style="font-family: Georgia, serif; color: #6f321f;">RSVP received</h1>
@@ -91,7 +96,10 @@ function htmlBody(rsvp: RsvpRecord) {
         </thead>
         <tbody>${responseSummaryHtml(rsvp.responses)}</tbody>
       </table>
-      <p>You can update your RSVP by returning to <a href="https://nicoleandbrandt.com/rsvp">nicoleandbrandt.com/rsvp</a> and using this email address.</p>
+      <p>
+        <a href="${editUrl}" style="display: inline-block; background: #6f321f; color: #fff; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 700;">Update RSVP</a>
+      </p>
+      <p style="color: #70675d;">If the button does not work, copy and paste this link: <br>${editUrl}</p>
       <p>Nicole &amp; Brandt</p>
     </div>
   `;

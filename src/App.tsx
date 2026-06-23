@@ -53,7 +53,7 @@ import {
   signOut,
   type User,
 } from 'firebase/auth';
-import { Link as RouterLink, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link as RouterLink, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { auth, db, firebaseEnabled, googleProvider } from './lib/firebase';
 import { wedding } from './content/wedding';
 
@@ -192,6 +192,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/rsvp" element={<RsvpPage />} />
+          <Route path="/rsvp/:invitationId" element={<RsvpPage />} />
           <Route path="/travel" element={<TravelPage />} />
           <Route path="/registry" element={<RegistryPage />} />
           <Route path="/guestbook" element={<GuestbookPage />} />
@@ -441,6 +442,7 @@ function RsvpPage() {
 }
 
 function RsvpForm() {
+  const { invitationId } = useParams();
   const [status, setStatus] = useState<Status>('idle');
   const [searchStatus, setSearchStatus] = useState<LoadStatus>('idle');
   const [searchName, setSearchName] = useState('');
@@ -511,6 +513,16 @@ function RsvpForm() {
     }
     setSearchStatus('loaded');
   };
+
+  useEffect(() => {
+    if (!invitationId) return;
+    setSearchStatus('loading');
+    setStatus('idle');
+    setInvitation(null);
+    setLookupMatches([]);
+    setNameSearchNeedsEmail(false);
+    loadInvitation(invitationId, 'edit').catch(() => setSearchStatus('error'));
+  }, [invitationId]);
 
   const searchByName = async (event: React.FormEvent) => {
     event.preventDefault();
