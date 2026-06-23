@@ -41,10 +41,11 @@ The app uses these collections:
 - `invitations`: invitation groups and included guests
 - `inviteLookups`: exact-name lookup documents for finding an invitation
 - `rsvpEmailLookups`: exact-email lookup documents for editing a submitted RSVP
+- `inviteNameSearch`: range-query name search records for partial invitation lookup
 - `rsvps`: submitted invitation responses
 - `guestbook`: guestbook messages
 
-Create invitation groups from `/admin`. Add one invited guest name per line. Each guest name gets a lookup entry, so any invited person can search their own name and RSVP for everyone included on that invitation. The RSVP captures wedding attendance, welcome-event attendance, meal preference, contact email, optional phone number, and notes. Guests can search again later by invitation name or by the contact email used on the RSVP to edit their response.
+Create invitation groups from `/admin`. Add one invited guest name per line. Each guest name gets lookup records, so any invited person can search their own name and RSVP for everyone included on that invitation. The RSVP captures wedding attendance, welcome-event attendance, contact email, and an optional phone number. Guests must use the contact email submitted with the RSVP to edit their response.
 
 Firestore admin access is controlled by a private Firebase Auth custom claim instead of public email addresses in the repo. Set it from a trusted Admin SDK environment:
 
@@ -63,6 +64,29 @@ To use the script:
 The service account file is ignored by git. Do not commit it.
 
 For a public site, enable Firebase App Check for the web app in the Firebase Console and enforce it for Firestore after confirming invitation lookup, RSVP, and guestbook submissions work in production.
+
+## Email Confirmations
+
+RSVP confirmation emails are sent by Firebase Cloud Functions using Resend. GitHub Pages cannot safely send email directly because provider API keys would be exposed in the browser.
+
+Prerequisites:
+
+- Firebase project on the Blaze plan so Cloud Functions can call external APIs.
+- A Resend account with `nicoleandbrandt.com` verified as a sending domain.
+- DNS records from Resend added in Cloudflare.
+
+Setup:
+
+```bash
+cd functions
+npm install
+npm run build
+cd ..
+firebase functions:secrets:set RESEND_API_KEY
+firebase deploy --only functions
+```
+
+The default sender is `Nicole & Brandt <rsvp@nicoleandbrandt.com>` and the reply-to is `namoeller16@gmail.com`. Update `functions/src/index.ts` if either address should change.
 
 ## GitHub Pages
 

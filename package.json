@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist",
     "set-admins": "tsx scripts/set-admin-claims.ts",
-    "preload-invitations": "tsx scripts/preload-invitations.ts"
+    "preload-invitations": "tsx scripts/preload-invitations.ts",
+    "functions:build": "npm --prefix functions run build",
+    "functions:deploy": "npm --prefix functions run build && firebase deploy --only functions"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
