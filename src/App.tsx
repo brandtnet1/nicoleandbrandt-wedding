@@ -56,6 +56,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { Link as RouterLink, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, firebaseEnabled, googleProvider } from './lib/firebase';
 import { wedding } from './content/wedding';
 
@@ -105,7 +106,6 @@ type GuestbookRecord = GuestRecord & {
 
 const navItems = [
   { label: 'Home', path: '/' },
-  { label: 'RSVP', path: '/rsvp' },
   { label: 'Travel', path: '/travel' },
   { label: 'Registry', path: '/registry' },
   { label: 'Guestbook', path: '/guestbook' },
@@ -187,22 +187,39 @@ function authErrorMessage(error: unknown) {
 }
 
 function App() {
+  const location = useLocation();
+
   return (
     <Box className="app-shell">
       <Nav />
       <Box component="main" className="page-main">
-        <Routes>
-          <Route path="/" element={<HomeOrRsvp />} />
-          <Route path="/rsvp" element={<RsvpPage />} />
-          <Route path="/rsvp/:invitationId" element={<RsvpPage />} />
-          <Route path="/travel" element={<TravelPage />} />
-          <Route path="/registry" element={<RegistryPage />} />
-          <Route path="/guestbook" element={<GuestbookPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-        </Routes>
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<PageTransition><HomeOrRsvp /></PageTransition>} />
+            <Route path="/rsvp" element={<PageTransition><RsvpPage /></PageTransition>} />
+            <Route path="/rsvp/:invitationId" element={<PageTransition><RsvpPage /></PageTransition>} />
+            <Route path="/travel" element={<PageTransition><TravelPage /></PageTransition>} />
+            <Route path="/registry" element={<PageTransition><RegistryPage /></PageTransition>} />
+            <Route path="/guestbook" element={<PageTransition><GuestbookPage /></PageTransition>} />
+            <Route path="/admin" element={<PageTransition><AdminPage /></PageTransition>} />
+          </Routes>
+        </AnimatePresence>
       </Box>
       <Footer />
     </Box>
+  );
+}
+
+function PageTransition({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.25, ease: [0.2, 0.9, 0.2, 1] }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -263,9 +280,16 @@ function Home() {
             ['Date', wedding.date],
             ['Ceremony', wedding.ceremonyTime],
             ['Location', `${wedding.venue}, ${wedding.city}`],
-          ].map(([label, value]) => (
+          ].map(([label, value], index) => (
             <Grid key={label} size={{ xs: 12, md: 4 }}>
-              <InfoCard label={label} value={value} />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: index * 0.1, ease: [0.2, 0.9, 0.2, 1] }}
+              >
+                <InfoCard label={label} value={value} />
+              </motion.div>
             </Grid>
           ))}
         </Grid>
@@ -276,50 +300,78 @@ function Home() {
       <Section title="Weekend Preview" tone="cream">
         <Paper className="timeline-panel" sx={{ maxWidth: 860, mx: 'auto', overflow: 'hidden' }}>
           {wedding.schedule.map((item, index) => (
-            <Box
+            <motion.div
               key={item.title}
-              className="timeline-row"
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: '132px 1fr' },
-                gap: { xs: 0.5, sm: 3 },
-                p: { xs: 2.5, md: 3 },
-                borderBottom: index === wedding.schedule.length - 1 ? 0 : '1px solid #eadfce',
-              }}
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: index * 0.08, ease: [0.2, 0.9, 0.2, 1] }}
             >
-              <Typography variant="overline" color="secondary" sx={{ fontWeight: 800 }}>
-                {item.time}
-              </Typography>
-              <Box>
-                <Typography variant="h5">{item.title}</Typography>
-                <Typography color="text.secondary">{item.detail}</Typography>
+              <Box
+                className="timeline-row"
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: '132px 1fr' },
+                  gap: { xs: 0.5, sm: 3 },
+                  p: { xs: 2.5, md: 3 },
+                  borderBottom: index === wedding.schedule.length - 1 ? 0 : '1px solid #eadfce',
+                }}
+              >
+                <Typography variant="overline" color="secondary" sx={{ fontWeight: 800 }}>
+                  {item.time}
+                </Typography>
+                <Box>
+                  <Typography variant="h5">{item.title}</Typography>
+                  <Typography color="text.secondary">{item.detail}</Typography>
+                </Box>
               </Box>
-            </Box>
+            </motion.div>
           ))}
         </Paper>
       </Section>
       <Section title="Travel & FAQ">
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 6 }}>
-            <Paper sx={{ p: 3, height: '100%' }}>
-              <FlightIcon color="primary" />
-              <Typography variant="h5" sx={{ mt: 1 }}>Getting there</Typography>
-              <Typography color="text.secondary">Fly into ATL. The venue is north of Atlanta in Woodstock, so guests should plan for extra travel time from the airport, especially with holiday weekend traffic.</Typography>
-            </Paper>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.0, ease: [0.2, 0.9, 0.2, 1] }}
+            >
+              <Paper sx={{ p: 3, height: '100%' }}>
+                <FlightIcon color="primary" />
+                <Typography variant="h5" sx={{ mt: 1 }}>Getting there</Typography>
+                <Typography color="text.secondary">Fly into ATL. The venue is north of Atlanta in Woodstock, so guests should plan for extra travel time from the airport, especially with holiday weekend traffic.</Typography>
+              </Paper>
+            </motion.div>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
-            <Paper sx={{ p: 3, height: '100%' }}>
-              <RestaurantIcon color="primary" />
-              <Typography variant="h5" sx={{ mt: 1 }}>Weekend plans</Typography>
-              <Typography color="text.secondary">Hotel blocks, transportation, and welcome details will be added as plans are finalized.</Typography>
-            </Paper>
-          </Grid>
-          {wedding.faqs.map((faq) => (
-            <Grid key={faq.q} size={{ xs: 12, md: 6 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.08, ease: [0.2, 0.9, 0.2, 1] }}
+            >
               <Paper sx={{ p: 3, height: '100%' }}>
-                <Typography variant="h6">{faq.q}</Typography>
-                <Typography color="text.secondary">{faq.a}</Typography>
+                <RestaurantIcon color="primary" />
+                <Typography variant="h5" sx={{ mt: 1 }}>Weekend plans</Typography>
+                <Typography color="text.secondary">Hotel blocks, transportation, and welcome details will be added as plans are finalized.</Typography>
               </Paper>
+            </motion.div>
+          </Grid>
+          {wedding.faqs.map((faq, index) => (
+            <Grid key={faq.q} size={{ xs: 12, md: 6 }}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: 0.1 + index * 0.08, ease: [0.2, 0.9, 0.2, 1] }}
+              >
+                <Paper sx={{ p: 3, height: '100%' }}>
+                  <Typography variant="h6">{faq.q}</Typography>
+                  <Typography color="text.secondary">{faq.a}</Typography>
+                </Paper>
+              </motion.div>
             </Grid>
           ))}
         </Grid>
@@ -360,7 +412,6 @@ function Hero() {
             A fall wedding at {wedding.venue} in {wedding.city}.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <Button className="magnetic-button" component={RouterLink} to="/rsvp" variant="contained" size="large" endIcon={<SendIcon />}>RSVP</Button>
             <Button className="ghost-button" component={RouterLink} to="/registry" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>Registry</Button>
             <Button className="ghost-button" component={RouterLink} to="/guestbook" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>Guestbook</Button>
           </Stack>
@@ -374,10 +425,17 @@ function Section({ title, children, tone }: { title: string; children: React.Rea
   return (
     <Box className={`section-shell ${tone ? `section-${tone}` : ''}`} component="section" sx={{ py: { xs: 7, md: 10 } }}>
       <Container>
-        <Typography className="section-title" variant="h2" sx={{ mb: 4, fontSize: { xs: 40, md: 58 } }}>
-          {title}
-        </Typography>
-        {children}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.55, ease: [0.2, 0.9, 0.2, 1] }}
+        >
+          <Typography className="section-title" variant="h2" sx={{ mb: 4, fontSize: { xs: 40, md: 58 } }}>
+            {title}
+          </Typography>
+          {children}
+        </motion.div>
       </Container>
     </Box>
   );
@@ -427,11 +485,19 @@ function Countdown() {
         ['Hours', hours],
         ['Minutes', minutes],
         ['Seconds', seconds],
-      ].map(([label, value]) => (
-        <Paper className="countdown-tile" key={label}>
-          <Typography variant="h2">{String(value).padStart(2, '0')}</Typography>
-          <Typography variant="overline">{label}</Typography>
-        </Paper>
+      ].map(([label, value], index) => (
+        <motion.div
+          key={label}
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, delay: index * 0.1, ease: [0.2, 0.9, 0.2, 1] }}
+        >
+          <Paper className="countdown-tile">
+            <Typography variant="h2">{String(value).padStart(2, '0')}</Typography>
+            <Typography variant="overline">{label}</Typography>
+          </Paper>
+        </motion.div>
       ))}
     </Box>
   );
@@ -742,44 +808,58 @@ function RsvpForm() {
               <Stack spacing={1}>
                 <Typography variant="h5">Wedding RSVP</Typography>
                 <Typography color="text.secondary">Please answer for each person so we can give catering an accurate count.</Typography>
-                {invitation.guests.map((guest) => (
-                  <Paper key={`wedding-${guest.id}`} variant="outlined" className="guest-response-row" sx={{ p: 2 }}>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
-                      <Typography variant="h6">{guest.name}</Typography>
-                      <ToggleButtonGroup
-                        exclusive
-                        color="primary"
-                        value={responses[guest.id]?.wedding ?? 'yes'}
-                        onChange={(_, value) => updateResponse(guest, 'wedding', value)}
-                        aria-label={`${guest.name} wedding RSVP`}
-                      >
-                        <ToggleButton value="yes">Attending</ToggleButton>
-                        <ToggleButton value="no">Not attending</ToggleButton>
-                      </ToggleButtonGroup>
-                    </Stack>
-                  </Paper>
+                {invitation.guests.map((guest, index) => (
+                  <motion.div
+                    key={`wedding-${guest.id}`}
+                    initial={{ opacity: 0, x: -16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.35, delay: index * 0.06, ease: [0.2, 0.9, 0.2, 1] }}
+                  >
+                    <Paper variant="outlined" className="guest-response-row" sx={{ p: 2 }}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
+                        <Typography variant="h6">{guest.name}</Typography>
+                        <ToggleButtonGroup
+                          exclusive
+                          color="primary"
+                          value={responses[guest.id]?.wedding ?? 'yes'}
+                          onChange={(_, value) => updateResponse(guest, 'wedding', value)}
+                          aria-label={`${guest.name} wedding RSVP`}
+                        >
+                          <ToggleButton value="yes">Attending</ToggleButton>
+                          <ToggleButton value="no">Not attending</ToggleButton>
+                        </ToggleButtonGroup>
+                      </Stack>
+                    </Paper>
+                  </motion.div>
                 ))}
               </Stack>
 
               <Stack spacing={1}>
                 <Typography variant="h5">Welcome Event</Typography>
                 <Typography color="text.secondary">Please answer for the welcome event too. Location and time are still TBD.</Typography>
-                {invitation.guests.map((guest) => (
-                  <Paper key={`welcome-${guest.id}`} variant="outlined" className="guest-response-row" sx={{ p: 2 }}>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
-                      <Typography variant="h6">{guest.name}</Typography>
-                      <ToggleButtonGroup
-                        exclusive
-                        color="primary"
-                        value={responses[guest.id]?.welcomeEvent ?? 'yes'}
-                        onChange={(_, value) => updateResponse(guest, 'welcomeEvent', value)}
-                        aria-label={`${guest.name} welcome event RSVP`}
-                      >
-                        <ToggleButton value="yes">Attending</ToggleButton>
-                        <ToggleButton value="no">Not attending</ToggleButton>
-                      </ToggleButtonGroup>
-                    </Stack>
-                  </Paper>
+                {invitation.guests.map((guest, index) => (
+                  <motion.div
+                    key={`welcome-${guest.id}`}
+                    initial={{ opacity: 0, x: -16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.35, delay: index * 0.06, ease: [0.2, 0.9, 0.2, 1] }}
+                  >
+                    <Paper variant="outlined" className="guest-response-row" sx={{ p: 2 }}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
+                        <Typography variant="h6">{guest.name}</Typography>
+                        <ToggleButtonGroup
+                          exclusive
+                          color="primary"
+                          value={responses[guest.id]?.welcomeEvent ?? 'yes'}
+                          onChange={(_, value) => updateResponse(guest, 'welcomeEvent', value)}
+                          aria-label={`${guest.name} welcome event RSVP`}
+                        >
+                          <ToggleButton value="yes">Attending</ToggleButton>
+                          <ToggleButton value="no">Not attending</ToggleButton>
+                        </ToggleButtonGroup>
+                      </Stack>
+                    </Paper>
+                  </motion.div>
                 ))}
               </Stack>
 
@@ -854,35 +934,56 @@ function TravelPage() {
       <Section title="Venue">
         <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
           <Grid size={{ xs: 12, md: 6 }}>
-            <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 }, height: '100%' }}>
-              <Stack spacing={2}>
-                <Typography variant="h4">{wedding.venue}</Typography>
-                <Typography color="text.secondary">{wedding.venueAddress}</Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <Button component="a" href={googleMapsUrl} target="_blank" rel="noreferrer" variant="outlined">Google Maps</Button>
-                  <Button component="a" href={appleMapsUrl} target="_blank" rel="noreferrer" variant="outlined">Apple Maps</Button>
-                  <Button variant="outlined" onClick={copyAddress}>Copy address</Button>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, ease: [0.2, 0.9, 0.2, 1] }}
+            >
+              <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 }, height: '100%' }}>
+                <Stack spacing={2}>
+                  <Typography variant="h4">{wedding.venue}</Typography>
+                  <Typography color="text.secondary">{wedding.venueAddress}</Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    <Button component="a" href={googleMapsUrl} target="_blank" rel="noreferrer" variant="outlined">Google Maps</Button>
+                    <Button component="a" href={appleMapsUrl} target="_blank" rel="noreferrer" variant="outlined">Apple Maps</Button>
+                    <Button variant="outlined" onClick={copyAddress}>Copy address</Button>
+                  </Stack>
                 </Stack>
-              </Stack>
-            </Paper>
+              </Paper>
+            </motion.div>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
-            <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 }, height: '100%' }}>
-              <Stack spacing={2}>
-                <FlightIcon color="primary" />
-                <Typography variant="h5">Airport</Typography>
-                <Typography color="text.secondary">Hartsfield-Jackson Atlanta International Airport is the main airport for out-of-town guests. Woodstock is north of Atlanta, so check drive times before leaving.</Typography>
-              </Stack>
-            </Paper>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: 0.1, ease: [0.2, 0.9, 0.2, 1] }}
+            >
+              <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 }, height: '100%' }}>
+                <Stack spacing={2}>
+                  <FlightIcon color="primary" />
+                  <Typography variant="h5">Airport</Typography>
+                  <Typography color="text.secondary">Hartsfield-Jackson Atlanta International Airport is the main airport for out-of-town guests. Woodstock is north of Atlanta, so check drive times before leaving.</Typography>
+                </Stack>
+              </Paper>
+            </motion.div>
           </Grid>
           <Grid size={{ xs: 12 }}>
-            <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 } }}>
-              <Stack spacing={2}>
-                <RestaurantIcon color="primary" />
-                <Typography variant="h5">Hotels & Transportation</Typography>
-                <Typography color="text.secondary">Hotel blocks, shuttle details, and welcome-event travel notes will be added here once finalized.</Typography>
-              </Stack>
-            </Paper>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: 0.2, ease: [0.2, 0.9, 0.2, 1] }}
+            >
+              <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 } }}>
+                <Stack spacing={2}>
+                  <RestaurantIcon color="primary" />
+                  <Typography variant="h5">Hotels & Transportation</Typography>
+                  <Typography color="text.secondary">Hotel blocks, shuttle details, and welcome-event travel notes will be added here once finalized.</Typography>
+                </Stack>
+              </Paper>
+            </motion.div>
           </Grid>
         </Grid>
       </Section>
