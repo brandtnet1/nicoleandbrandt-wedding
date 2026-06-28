@@ -21,7 +21,7 @@ export const wedding = {
     { time: '8:00 PM', title: 'Dancing', detail: 'Music, dessert, and late-night snacks.' },
   ],
   faqs: [
-    { q: 'What should I wear?', a: 'Garden formal. Suits, dresses, jumpsuits, and comfortable shoes for lawn paths are all welcome.' },
+    { q: 'What should I wear?', a: 'Formal.' },
     { q: 'Can I bring a plus one?', a: 'Please check your invitation. If a guest is listed, include them when submitting your RSVP.' },
     { q: 'Are kids invited?', a: 'Yes. Kids are welcome to celebrate with us.' },
     { q: 'Where should I stay?', a: 'Hotel blocks and transport details will be added here as the date gets closer.' },
