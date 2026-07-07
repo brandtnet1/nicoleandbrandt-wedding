@@ -91,7 +91,8 @@ service cloud.firestore {
 
     match /guestbook/{id} {
       allow create: if validGuestbook();
-      allow read, update, delete: if isAdmin();
+      allow read: if true;
+      allow update, delete: if isAdmin();
     }
 
     match /{document=**} {
