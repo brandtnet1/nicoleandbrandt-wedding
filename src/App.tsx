@@ -1012,26 +1012,7 @@ function TravelPage() {
 function GuestbookPage() {
   const [status, setStatus] = useState<Status>('idle');
   const [form, setForm] = useState({ name: '', message: '' });
-  const [messages, setMessages] = useState<GuestbookRecord[]>([]);
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle');
   const message = firebaseMessage();
-
-  useEffect(() => {
-    if (!db) {
-      setLoadStatus('loaded');
-      return undefined;
-    }
-    setLoadStatus('loading');
-    const unsubscribe = onSnapshot(
-      query(collection(db, 'guestbook'), orderBy('createdAt', 'desc'), limit(50)),
-      (snapshot) => {
-        setMessages(snapshot.docs.map((document) => ({ id: document.id, ...document.data() })));
-        setLoadStatus('loaded');
-      },
-      () => setLoadStatus('error'),
-    );
-    return unsubscribe;
-  }, []);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1050,31 +1031,6 @@ function GuestbookPage() {
       <PageHeader title="Guestbook" eyebrow="Leave a note">
         <Typography variant="h6">Share a memory, a toast, or a message for the wedding weekend.</Typography>
       </PageHeader>
-      <Section title="Messages">
-        <Stack spacing={2} sx={{ maxWidth: 820, mx: 'auto' }}>
-          {loadStatus === 'loading' && <Alert severity="info">Loading messages...</Alert>}
-          {loadStatus === 'error' && <Alert severity="error">Unable to load messages.</Alert>}
-          {loadStatus === 'loaded' && messages.length === 0 && (
-            <Alert severity="info">No messages yet. Be the first to write one.</Alert>
-          )}
-          {messages.map((entry, index) => (
-            <motion.div
-              key={entry.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: index * 0.06, ease: [0.2, 0.9, 0.2, 1] }}
-            >
-              <Paper className="form-panel" sx={{ p: { xs: 2.5, md: 3 } }}>
-                <Stack spacing={1}>
-                  <Typography variant="h6">{entry.name}</Typography>
-                  <Typography color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>{entry.message}</Typography>
-                </Stack>
-              </Paper>
-            </motion.div>
-          ))}
-        </Stack>
-      </Section>
       <Section title="Write A Message">
         <Paper className="form-panel" component="form" onSubmit={submit} sx={{ p: { xs: 2, md: 4 }, maxWidth: 820, mx: 'auto' }}>
           <Stack spacing={2}>
