@@ -25,7 +25,6 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import CelebrationIcon from '@mui/icons-material/Celebration';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FlightIcon from '@mui/icons-material/Flight';
 import LoginIcon from '@mui/icons-material/Login';
@@ -58,6 +57,9 @@ import {
 import { Link as RouterLink, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLenis } from 'lenis/react';
+import cashAppQr from './assets/cash-app-qr.png';
+import venmoQr from './assets/venmo-qr.png';
+import zelleQr from './assets/zelle-qr-only.png';
 import { auth, db, firebaseEnabled, googleProvider } from './lib/firebase';
 import { wedding } from './content/wedding';
 
@@ -113,6 +115,26 @@ const navItems = [
 ];
 
 const weddingDate = new Date('2026-11-28T16:00:00-05:00');
+
+const honeymoonContributionOptions = [
+  {
+    name: 'Venmo',
+    detail: 'Scan the code or open Venmo to send a contribution directly to us.',
+    image: venmoQr,
+    url: 'https://venmo.com/u/brandtsmith123',
+  },
+  {
+    name: 'Cash App',
+    detail: 'Scan the code or open Cash App to send a contribution directly to us.',
+    image: cashAppQr,
+    url: 'https://cash.app/$sbrandt561',
+  },
+  {
+    name: 'Zelle',
+    detail: 'Scan this code in your banking app to send a contribution directly to us.',
+    image: zelleQr,
+  },
+];
 
 function firebaseMessage() {
   return firebaseEnabled
@@ -919,19 +941,37 @@ function RsvpForm() {
 function RegistryPage() {
   return (
     <>
-      <PageHeader title="Registry" eyebrow="Thank you">
-        <Typography variant="h6">Registry details are still being finalized.</Typography>
+      <PageHeader title="Honeymoon Fund" eyebrow="Thank you">
+        <Typography variant="h6">Your presence is our greatest gift. If you would like to give, a contribution toward our honeymoon would mean so much to us.</Typography>
       </PageHeader>
-      <Section title="Registry TBD">
-        <Paper className="form-panel" sx={{ p: { xs: 3, md: 5 }, maxWidth: 760, mx: 'auto', textAlign: 'center' }}>
-          <Stack spacing={2} sx={{ alignItems: 'center' }}>
-            <CelebrationIcon color="secondary" sx={{ fontSize: 44 }} />
-            <Typography variant="h4">Coming soon</Typography>
-            <Typography color="text.secondary" sx={{ maxWidth: 560 }}>
-              We will add registry details here once they are ready. Thank you for checking.
-            </Typography>
-          </Stack>
-        </Paper>
+      <Section title="A gift toward our adventure">
+        <Stack spacing={4} sx={{ maxWidth: 1060, mx: 'auto', textAlign: 'center' }}>
+          <Typography color="text.secondary" sx={{ maxWidth: 680, mx: 'auto' }}>
+            Choose the option that works best for you. Every contribution is sent directly to us, and we are so grateful for your love and support.
+          </Typography>
+          <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
+            {honeymoonContributionOptions.map((option) => (
+              <Grid key={option.name} size={{ xs: 12, sm: 6, md: 4 }}>
+                <Paper className="registry-card lift-card" sx={{ p: 3, height: '100%', textAlign: 'center' }}>
+                  <Stack spacing={2} sx={{ height: '100%', alignItems: 'center' }}>
+                    <Typography variant="h4">{option.name}</Typography>
+                    <Box className="honeymoon-qr">
+                      <Box component="img" src={option.image} alt={`QR code to contribute with ${option.name}`} />
+                    </Box>
+                    <Typography color="text.secondary" sx={{ flexGrow: 1 }}>{option.detail}</Typography>
+                    {option.url ? (
+                      <Button component="a" href={option.url} target="_blank" rel="noreferrer" variant="contained" fullWidth>
+                        Open {option.name}
+                      </Button>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">Use a second device, or save this QR image and use your banking app's image-import scanner if available.</Typography>
+                    )}
+                  </Stack>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        </Stack>
       </Section>
     </>
   );
