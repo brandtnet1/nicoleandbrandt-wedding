@@ -940,6 +940,26 @@ function RegistryPage() {
 function TravelPage() {
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wedding.venueAddress)}`;
   const appleMapsUrl = `https://maps.apple.com/?q=${encodeURIComponent(wedding.venueAddress)}`;
+  const hotelOptions = [
+    {
+      name: 'The Hotel at Avalon',
+      description: 'An Autograph Collection hotel in Avalon with elegant rooms and suites, a rooftop pool, and walkable shopping and dining.',
+      address: '9000 Avalon Boulevard, Alpharetta, GA 30009',
+      url: 'https://www.thehotelatavalon.com/',
+    },
+    {
+      name: 'The Hamilton Hotel',
+      description: 'A Curio Collection boutique hotel in downtown Alpharetta, blending vintage-inspired design with modern comforts and on-site dining.',
+      address: '35 Milton Avenue, Alpharetta, GA 30009',
+      url: 'https://thehamiltonhotel.com/',
+    },
+    {
+      name: 'Hilton Alpharetta Atlanta',
+      description: 'A full-service Alpharetta stay with an outdoor pool, restaurant, executive lounge, and complimentary parking.',
+      address: '5775 Windward Parkway, Alpharetta, GA 30005',
+      url: 'https://www.hilton.com/en/hotels/atltehh-hilton-alpharetta-atlanta/',
+    },
+  ];
   const copyAddress = async () => {
     await navigator.clipboard.writeText(`${wedding.venue}, ${wedding.venueAddress}`);
   };
@@ -997,8 +1017,24 @@ function TravelPage() {
               <Paper className="form-panel" sx={{ p: { xs: 3, md: 4 } }}>
                 <Stack spacing={2}>
                   <RestaurantIcon color="primary" />
-                  <Typography variant="h5">Hotels & Transportation</Typography>
-                  <Typography color="text.secondary">Hotel blocks, shuttle details, and welcome-event travel notes will be added here once finalized.</Typography>
+                  <Typography variant="h5">Hotels</Typography>
+                  <Typography color="text.secondary">These Alpharetta-area hotels offer an elevated stay for the wedding weekend. Please book directly with the hotel; room blocks and transportation details will be shared if available.</Typography>
+                  <Grid container spacing={2}>
+                    {hotelOptions.map((hotel) => (
+                      <Grid key={hotel.name} size={{ xs: 12, md: 4 }}>
+                        <Paper variant="outlined" sx={{ p: 2.5, height: '100%' }}>
+                          <Stack spacing={1.25} sx={{ height: '100%' }}>
+                            <Typography variant="h6">{hotel.name}</Typography>
+                            <Typography color="text.secondary">{hotel.description}</Typography>
+                            <Typography variant="body2" color="text.secondary">{hotel.address}</Typography>
+                            <Box sx={{ pt: 0.5, mt: 'auto' }}>
+                              <Button component="a" href={hotel.url} target="_blank" rel="noreferrer" variant="outlined">Visit hotel website</Button>
+                            </Box>
+                          </Stack>
+                        </Paper>
+                      </Grid>
+                    ))}
+                  </Grid>
                 </Stack>
               </Paper>
             </motion.div>
