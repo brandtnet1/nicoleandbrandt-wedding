@@ -1,4 +1,25 @@
-export const wedding = {
+type WeddingFaq = {
+  q: string;
+  a: string;
+  link?: {
+    label: string;
+    to: string;
+  };
+};
+
+export const wedding: {
+  couple: string;
+  date: string;
+  ceremonyTime: string;
+  city: string;
+  venue: string;
+  venueAddress: string;
+  rsvpDeadline: string;
+  email: string;
+  registry: { name: string; description: string; url: string }[];
+  schedule: { time: string; title: string; detail: string }[];
+  faqs: WeddingFaq[];
+} = {
   couple: 'Nicole & Brandt',
   date: 'Saturday, November 28, 2026',
   ceremonyTime: 'TBD',
@@ -24,6 +45,10 @@ export const wedding = {
     { q: 'What should I wear?', a: 'Formal.' },
     { q: 'Can I bring a plus one?', a: 'Please check your invitation. If a guest is listed, include them when submitting your RSVP.' },
     { q: 'Are kids invited?', a: 'Yes. Kids are welcome to celebrate with us.' },
-    { q: 'Where should I stay?', a: 'Hotel blocks and transport details will be added here as the date gets closer.' },
+    {
+      q: 'Where should I stay?',
+      a: 'We have shared a few recommended Alpharetta-area hotels on our Travel page. Please book directly with the hotel; any room-block or transportation updates will be shared there.',
+      link: { label: 'View hotel recommendations', to: '/travel' },
+    },
   ],
 };

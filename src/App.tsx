@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Alert,
   AppBar,
@@ -55,11 +55,17 @@ import {
   type User,
 } from 'firebase/auth';
 import { Link as RouterLink, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { useLenis } from 'lenis/react';
 import cashAppQr from './assets/cash-app-qr.png';
 import venmoQr from './assets/venmo-qr.png';
 import zelleQr from './assets/zelle-qr-only.png';
+import skiingPhoto from './assets/2054a7e9-5d16-4d14-b534-666dd2c1f1e4.jpg';
+import snowboardPhoto from './assets/33e65d3c-9964-49dd-bbb7-8ef78d376844.jpg';
+import mountainPhoto from './assets/6a3a3eee-1644-4338-a935-50c4e0fe8045.jpg';
+import beachPhoto from './assets/96d9ac2b-d076-4de8-8e6f-61009e6f5516.jpg';
+import lakesidePhoto from './assets/c6677703-2554-402c-856a-e16e8f0ea376.jpg';
+import vineyardPhoto from './assets/fa4fb6ca-39ce-4bf9-8c0a-23a118f6c8d8.jpg';
 import { auth, db, firebaseEnabled, googleProvider } from './lib/firebase';
 import { wedding } from './content/wedding';
 
@@ -135,6 +141,17 @@ const honeymoonContributionOptions = [
     image: zelleQr,
   },
 ];
+
+const storyPhotos = [
+  { src: mountainPhoto, alt: 'Nicole and Brandt on a snowy mountain adventure.' },
+  { src: skiingPhoto, alt: 'Nicole and Brandt skiing together during a snowfall.' },
+  { src: snowboardPhoto, alt: 'Nicole and Brandt taking a snowy day selfie on the slopes.' },
+  { src: beachPhoto, alt: 'Nicole and Brandt together on the beach.' },
+  { src: lakesidePhoto, alt: 'Nicole and Brandt overlooking a lakeside view.' },
+  { src: vineyardPhoto, alt: 'Nicole and Brandt enjoying a vineyard visit together.' },
+];
+
+const storyPortraitPhotos = storyPhotos.slice(1);
 
 function firebaseMessage() {
   return firebaseEnabled
@@ -336,6 +353,9 @@ function Home() {
       <Section title="Countdown" tone="ember">
         <Countdown />
       </Section>
+      <Section title="A Few of Our Favorite Adventures" tone="cream">
+        <OurStoryGallery />
+      </Section>
       <Section title="Weekend Preview" tone="cream">
         <Paper className="timeline-panel" sx={{ maxWidth: 860, mx: 'auto', overflow: 'hidden' }}>
           {wedding.schedule.map((item, index) => (
@@ -392,9 +412,12 @@ function Home() {
               transition={{ duration: 0.4, delay: 0.08, ease: [0.2, 0.9, 0.2, 1] }}
             >
               <Paper sx={{ p: 3, height: '100%' }}>
-                <RestaurantIcon color="primary" />
-                <Typography variant="h5" sx={{ mt: 1 }}>Weekend plans</Typography>
-                <Typography color="text.secondary">Hotel blocks, transportation, and welcome details will be added as plans are finalized.</Typography>
+                <Stack spacing={1.25} sx={{ alignItems: 'flex-start' }}>
+                  <RestaurantIcon color="primary" />
+                  <Typography variant="h5">Weekend plans</Typography>
+                  <Typography color="text.secondary">Find venue directions, recommended hotels, and other travel details for the wedding weekend.</Typography>
+                  <Button component={RouterLink} to="/travel" variant="outlined">Explore travel details</Button>
+                </Stack>
               </Paper>
             </motion.div>
           </Grid>
@@ -407,8 +430,11 @@ function Home() {
                 transition={{ duration: 0.4, delay: 0.1 + index * 0.08, ease: [0.2, 0.9, 0.2, 1] }}
               >
                 <Paper sx={{ p: 3, height: '100%' }}>
-                  <Typography variant="h6">{faq.q}</Typography>
-                  <Typography color="text.secondary">{faq.a}</Typography>
+                  <Stack spacing={1.25} sx={{ alignItems: 'flex-start' }}>
+                    <Typography variant="h6">{faq.q}</Typography>
+                    <Typography color="text.secondary">{faq.a}</Typography>
+                    {faq.link && <Button component={RouterLink} to={faq.link.to} variant="text" size="small" sx={{ px: 0 }}>{faq.link.label}</Button>}
+                  </Stack>
                 </Paper>
               </motion.div>
             </Grid>
@@ -501,6 +527,89 @@ function InfoCard({ label, value }: { label: string; value: string }) {
       <Typography variant="overline" color="secondary">{label}</Typography>
       <Typography variant="h5">{value}</Typography>
     </Paper>
+  );
+}
+
+function OurStoryGallery() {
+  const prefersReducedMotion = useReducedMotion();
+  const [activePortraitIndex, setActivePortraitIndex] = useState(0);
+  const [activeMobileIndex, setActiveMobileIndex] = useState(0);
+  const mobileGalleryRef = useRef<HTMLDivElement>(null);
+  const nextPortraitIndex = (activePortraitIndex + 1) % storyPortraitPhotos.length;
+
+  useEffect(() => {
+    if (prefersReducedMotion) return undefined;
+    const timer = window.setInterval(() => {
+      setActivePortraitIndex((current) => (current + 1) % storyPortraitPhotos.length);
+    }, 5500);
+    return () => window.clearInterval(timer);
+  }, [prefersReducedMotion]);
+
+  const selectMobilePhoto = (index: number) => {
+    const photo = mobileGalleryRef.current?.children.item(index);
+    photo?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'center' });
+  };
+
+  const handleMobileScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const { clientWidth, scrollLeft } = event.currentTarget;
+    if (clientWidth === 0) return;
+    setActiveMobileIndex(Math.min(storyPhotos.length - 1, Math.round(scrollLeft / clientWidth)));
+  };
+
+  return (
+    <>
+      <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.18fr) minmax(0, 1fr)', gap: 2.5, maxWidth: 1040, mx: 'auto' }}>
+        <RotatingStoryPhoto photo={storyPortraitPhotos[activePortraitIndex]} />
+        <Box sx={{ minHeight: 470, overflow: 'hidden', borderRadius: 3, boxShadow: '0 18px 40px rgba(45, 41, 36, 0.16)' }}>
+          <Box component="img" src={storyPhotos[0].src} alt={storyPhotos[0].alt} sx={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 62%' }} />
+        </Box>
+        <RotatingStoryPhoto photo={storyPortraitPhotos[nextPortraitIndex]} />
+      </Box>
+      <Box
+        ref={mobileGalleryRef}
+        aria-label="Photo gallery"
+        onScroll={handleMobileScroll}
+        sx={{
+          display: { xs: 'flex', md: 'none' },
+          overflowX: 'auto',
+          scrollSnapType: 'x mandatory',
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
+        {storyPhotos.map((photo) => (
+          <Box key={photo.src} sx={{ flex: '0 0 100%', scrollSnapAlign: 'center', overflow: 'hidden', borderRadius: 3, aspectRatio: '3 / 4', boxShadow: '0 18px 40px rgba(45, 41, 36, 0.16)' }}>
+            <Box component="img" src={photo.src} alt={photo.alt} sx={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
+          </Box>
+        ))}
+      </Box>
+      <Stack direction="row" spacing={0.4} sx={{ display: { xs: 'flex', md: 'none' }, justifyContent: 'center', mt: 1.5 }}>
+        {storyPhotos.map((photo, index) => (
+          <IconButton key={photo.src} aria-label={`Show photo ${index + 1} of ${storyPhotos.length}`} onClick={() => selectMobilePhoto(index)} size="small" sx={{ p: 0.5 }}>
+            <Box sx={{ width: index === activeMobileIndex ? 22 : 7, height: 7, borderRadius: 99, bgcolor: index === activeMobileIndex ? 'secondary.main' : 'rgba(90, 71, 54, 0.35)', transition: 'width 180ms ease' }} />
+          </IconButton>
+        ))}
+      </Stack>
+    </>
+  );
+}
+
+function RotatingStoryPhoto({ photo }: { photo: typeof storyPortraitPhotos[number] }) {
+  return (
+    <Box sx={{ position: 'relative', minHeight: 470, overflow: 'hidden', borderRadius: 3, boxShadow: '0 18px 40px rgba(45, 41, 36, 0.16)' }}>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.img
+          key={photo.src}
+          src={photo.src}
+          alt={photo.alt}
+          initial={{ opacity: 0, scale: 1.025 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.99 }}
+          transition={{ duration: 0.7, ease: [0.2, 0.9, 0.2, 1] }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
+        />
+      </AnimatePresence>
+    </Box>
   );
 }
 
