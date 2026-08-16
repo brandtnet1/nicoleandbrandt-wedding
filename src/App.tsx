@@ -151,8 +151,6 @@ const storyPhotos = [
   { src: vineyardPhoto, alt: 'Nicole and Brandt enjoying a vineyard visit together.' },
 ];
 
-const storyPortraitPhotos = storyPhotos.slice(1);
-
 function firebaseMessage() {
   return firebaseEnabled
     ? null
@@ -532,16 +530,20 @@ function InfoCard({ label, value }: { label: string; value: string }) {
 
 function OurStoryGallery() {
   const prefersReducedMotion = useReducedMotion();
-  const [activePortraitIndex, setActivePortraitIndex] = useState(0);
+  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
   const [activeMobileIndex, setActiveMobileIndex] = useState(0);
   const mobileGalleryRef = useRef<HTMLDivElement>(null);
-  const nextPortraitIndex = (activePortraitIndex + 1) % storyPortraitPhotos.length;
+  const desktopPhotos = [
+    storyPhotos[(activeStoryIndex + 1) % storyPhotos.length],
+    storyPhotos[activeStoryIndex],
+    storyPhotos[(activeStoryIndex + 2) % storyPhotos.length],
+  ];
 
   useEffect(() => {
     if (prefersReducedMotion) return undefined;
     const timer = window.setInterval(() => {
-      setActivePortraitIndex((current) => (current + 1) % storyPortraitPhotos.length);
-    }, 5500);
+      setActiveStoryIndex((current) => (current + 1) % storyPhotos.length);
+    }, 6500);
     return () => window.clearInterval(timer);
   }, [prefersReducedMotion]);
 
@@ -559,12 +561,17 @@ function OurStoryGallery() {
   return (
     <>
       <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.18fr) minmax(0, 1fr)', gap: 2.5, maxWidth: 1040, mx: 'auto' }}>
-        <RotatingStoryPhoto photo={storyPortraitPhotos[activePortraitIndex]} />
-        <Box sx={{ minHeight: 470, overflow: 'hidden', borderRadius: 3, boxShadow: '0 18px 40px rgba(45, 41, 36, 0.16)' }}>
-          <Box component="img" src={storyPhotos[0].src} alt={storyPhotos[0].alt} sx={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 62%' }} />
-        </Box>
-        <RotatingStoryPhoto photo={storyPortraitPhotos[nextPortraitIndex]} />
+        {desktopPhotos.map((photo, index) => (
+          <RotatingStoryPhoto key={index} photo={photo} prefersReducedMotion={prefersReducedMotion} />
+        ))}
       </Box>
+      <Stack direction="row" spacing={0.4} sx={{ display: { xs: 'none', md: 'flex' }, justifyContent: 'center', mt: 1.5 }}>
+        {storyPhotos.map((photo, index) => (
+          <IconButton key={photo.src} aria-label={`Show photo ${index + 1} of ${storyPhotos.length}`} onClick={() => setActiveStoryIndex(index)} size="small" sx={{ p: 0.5 }}>
+            <Box sx={{ width: index === activeStoryIndex ? 22 : 7, height: 7, borderRadius: 99, bgcolor: index === activeStoryIndex ? 'secondary.main' : 'rgba(90, 71, 54, 0.35)', transition: 'width 280ms ease' }} />
+          </IconButton>
+        ))}
+      </Stack>
       <Box
         ref={mobileGalleryRef}
         aria-label="Photo gallery"
@@ -594,19 +601,19 @@ function OurStoryGallery() {
   );
 }
 
-function RotatingStoryPhoto({ photo }: { photo: typeof storyPortraitPhotos[number] }) {
+function RotatingStoryPhoto({ photo, prefersReducedMotion }: { photo: typeof storyPhotos[number]; prefersReducedMotion: boolean | null }) {
   return (
     <Box sx={{ position: 'relative', minHeight: 470, overflow: 'hidden', borderRadius: 3, boxShadow: '0 18px 40px rgba(45, 41, 36, 0.16)' }}>
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence initial={false}>
         <motion.img
           key={photo.src}
           src={photo.src}
           alt={photo.alt}
-          initial={{ opacity: 0, scale: 1.025 }}
+          initial={prefersReducedMotion ? false : { opacity: 0, scale: 1.06 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.99 }}
-          transition={{ duration: 0.7, ease: [0.2, 0.9, 0.2, 1] }}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
+          exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { opacity: { duration: 1.2, ease: [0.22, 0.61, 0.36, 1] }, scale: { duration: 1.35, ease: [0.22, 0.61, 0.36, 1] } }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', objectFit: 'cover', willChange: 'opacity, transform' }}
         />
       </AnimatePresence>
     </Box>
