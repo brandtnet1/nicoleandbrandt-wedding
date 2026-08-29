@@ -994,7 +994,7 @@ function RsvpForm() {
 
               <Stack spacing={1}>
                 <Typography variant="h5">Welcome Event</Typography>
-                <Typography color="text.secondary">Please answer for the welcome event too. Location and time are still TBD.</Typography>
+                <Typography color="text.secondary">Please answer for the welcome event at Variant Brewing on Friday, November 27th, 2026.</Typography>
                 {invitation.guests.map((guest, index) => (
                   <motion.div
                     key={`welcome-${guest.id}`}
