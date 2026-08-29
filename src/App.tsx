@@ -1341,7 +1341,7 @@ function AdminPage() {
     setRows([]);
     try {
       if (!db) throw new Error('Firebase is not configured.');
-      const snapshot = await getDocs(query(collection(db, collectionName), orderBy('createdAt', 'desc'), limit(50)));
+      const snapshot = await getDocs(query(collection(db, collectionName), orderBy('createdAt', 'desc'), limit(100)));
       setRows(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       setLoadStatus('loaded');
     } catch (caught) {
