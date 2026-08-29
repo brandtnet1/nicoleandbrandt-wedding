@@ -10,6 +10,8 @@
     "deploy": "npm run build && gh-pages -d dist",
     "set-admins": "tsx scripts/set-admin-claims.ts",
     "preload-invitations": "tsx scripts/preload-invitations.ts",
+    "reconcile-invitations": "tsx scripts/reconcile-invitations.ts",
+    "check:reconcile-invitations": "tsc --ignoreConfig --noEmit --target es2023 --module nodenext --moduleResolution nodenext --esModuleInterop --skipLibCheck scripts/reconcile-invitations.ts",
     "functions:build": "npm --prefix functions run build",
     "functions:deploy": "npm --prefix functions run build && firebase deploy --only functions"
   },

@@ -63,6 +63,39 @@ To use the script:
 
 The service account file is ignored by git. Do not commit it.
 
+### Repair duplicate invitations
+
+`invitations` are the source of truth. The `inviteLookups` and `inviteNameSearch`
+collections are derived from them and can be regenerated safely. To remove exact
+duplicate invitation groups and rebuild both derived collections, first inspect the
+production data:
+
+```bash
+npm run reconcile-invitations -- --dry-run
+```
+
+The report identifies the retained invitation ID, the duplicate IDs to be deleted,
+and records that make a group unsafe to change automatically. The command refuses to
+delete any group with more than one RSVP/email-lookup reference or with a
+subcollection. Once the dry-run report is correct, run during a quiet period for
+admin edits:
+
+```bash
+npm run reconcile-invitations -- --apply
+```
+
+Then run the dry run again to verify the cleanup. This utility never changes RSVP or
+guestbook documents.
+
+To remove a known invitation explicitly, preview its safety checks first, then add
+`--apply` only after the report confirms that it has no RSVP, email-lookup, or
+subcollection references:
+
+```bash
+npm run reconcile-invitations -- --delete-invitation INVITATION_ID
+npm run reconcile-invitations -- --apply --delete-invitation INVITATION_ID
+```
+
 For a public site, enable Firebase App Check for the web app in the Firebase Console and enforce it for Firestore after confirming invitation lookup, RSVP, and guestbook submissions work in production.
 
 ## Email Confirmations
