@@ -1045,6 +1045,9 @@ function RsvpForm() {
                 </Paper>
               </Stack>
 
+              {status === 'saved' && <Alert severity="success">You're all set. A confirmation email with an update link will be sent to the contact email.</Alert>}
+              {status === 'error' && <Alert severity="error">Unable to submit right now. Check Firebase configuration.</Alert>}
+
               <Button type="submit" variant="contained" size="large" disabled={status === 'saving'} endIcon={<SendIcon />}>
                 {status === 'saving' ? 'Submitting' : existingRsvpId ? 'Update RSVP' : 'Submit RSVP'}
               </Button>
