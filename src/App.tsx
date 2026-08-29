@@ -115,6 +115,7 @@ type GuestbookRecord = GuestRecord & {
 
 const navItems = [
   { label: 'Home', path: '/' },
+  { label: 'RSVP', path: '/rsvp' },
   { label: 'Travel', path: '/travel' },
   { label: 'Registry', path: '/registry' },
   { label: 'Guestbook', path: '/guestbook' },
@@ -379,7 +380,7 @@ function Home() {
                 </Typography>
                 <Box>
                   <Typography variant="h5">{item.title}</Typography>
-                  <Typography color="text.secondary">{item.detail}</Typography>
+                  <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>{item.detail}</Typography>
                 </Box>
               </Box>
             </motion.div>
@@ -475,6 +476,7 @@ function Hero() {
             A fall wedding at {wedding.venue} in {wedding.city}.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Button className="ghost-button" component={RouterLink} to="/rsvp" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>RSVP</Button>
             <Button className="ghost-button" component={RouterLink} to="/travel" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>Travel</Button>
             <Button className="ghost-button" component={RouterLink} to="/registry" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>Registry</Button>
             <Button className="ghost-button" component={RouterLink} to="/guestbook" variant="outlined" size="large" sx={{ color: 'white', borderColor: 'white' }}>Guestbook</Button>
