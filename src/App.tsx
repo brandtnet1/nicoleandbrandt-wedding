@@ -98,7 +98,7 @@ type Invitation = {
 };
 type LookupMatch = { invitationId: string; guestName: string; partyName: string };
 type Attendance = 'yes' | 'no';
-type RsvpResponse = { name: string; wedding: Attendance; welcomeEvent: Attendance };
+type RsvpResponse = { guestId?: string; name: string; wedding: Attendance; welcomeEvent: Attendance };
 type GuestResponse = Record<string, RsvpResponse>;
 type RsvpRecord = {
   id: string;
@@ -183,6 +183,10 @@ function searchKeysForName(name: string) {
 
 function isSearchableGuestName(name: string) {
   return !['guest', 'wife', 'kid', '& kid'].includes(name.trim().toLowerCase());
+}
+
+function isGuestPlaceholder(name: string) {
+  return name.toLowerCase().includes('guest');
 }
 
 function uniqueMatches(matches: LookupMatch[]) {
@@ -735,10 +739,12 @@ function RsvpForm() {
       setEmail(rsvpData.contactEmail ?? '');
       setPhone(rsvpData.contactPhone ?? '');
       setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => {
-        const existing = rsvpData.responses?.find((response) => response.name === guest.name);
+        const existing = rsvpData.responses?.find((response) => response.guestId === guest.id || (!response.guestId && response.name === guest.name));
         return [
           guest.id,
-          existing ? { name: existing.name, wedding: existing.wedding, welcomeEvent: existing.welcomeEvent } : { name: guest.name, wedding: 'yes', welcomeEvent: 'yes' },
+          existing
+            ? { guestId: guest.id, name: existing.name, wedding: existing.wedding, welcomeEvent: existing.welcomeEvent }
+            : { guestId: guest.id, name: guest.name, wedding: 'yes', welcomeEvent: 'yes' },
         ];
       })));
     } else {
@@ -747,7 +753,7 @@ function RsvpForm() {
       setPhone('');
       setResponses(Object.fromEntries(nextInvitation.guests.map((guest) => [
         guest.id,
-        { name: guest.name, wedding: 'yes', welcomeEvent: 'yes' },
+        { guestId: guest.id, name: guest.name, wedding: 'yes', welcomeEvent: 'yes' },
       ])));
     }
     setSearchStatus('loaded');
@@ -857,18 +863,34 @@ function RsvpForm() {
 
   const updateResponse = (guest: InvitationGuest, field: 'wedding' | 'welcomeEvent', value: Attendance | null) => {
     if (!value) return;
-    setResponses({
-      ...responses,
+    setResponses((currentResponses) => ({
+      ...currentResponses,
       [guest.id]: {
-        name: guest.name,
-        wedding: responses[guest.id]?.wedding ?? 'yes',
-        welcomeEvent: responses[guest.id]?.welcomeEvent ?? 'yes',
+        guestId: guest.id,
+        name: currentResponses[guest.id]?.name ?? guest.name,
+        wedding: currentResponses[guest.id]?.wedding ?? 'yes',
+        welcomeEvent: currentResponses[guest.id]?.welcomeEvent ?? 'yes',
         [field]: value,
       },
-    });
+    }));
   };
 
+  const updateGuestName = (guest: InvitationGuest, name: string) => {
+    setResponses((currentResponses) => ({
+      ...currentResponses,
+      [guest.id]: {
+        guestId: guest.id,
+        name,
+        wedding: currentResponses[guest.id]?.wedding ?? 'yes',
+        welcomeEvent: currentResponses[guest.id]?.welcomeEvent ?? 'yes',
+      },
+    }));
+  };
+
+  const responseName = (guest: InvitationGuest) => responses[guest.id]?.name ?? guest.name;
+
   const responseList = invitation ? invitation.guests.map((guest) => responses[guest.id] ?? {
+    guestId: guest.id,
     name: guest.name,
     wedding: 'yes' as Attendance,
     welcomeEvent: 'yes' as Attendance,
@@ -975,13 +997,25 @@ function RsvpForm() {
                   >
                     <Paper variant="outlined" className="guest-response-row" sx={{ p: 2 }}>
                       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
-                        <Typography variant="h6">{guest.name}</Typography>
+                        <Box sx={{ flexGrow: 1 }}>
+                          {isGuestPlaceholder(guest.name) ? (
+                            <TextField
+                              fullWidth
+                              label="Guest's name"
+                              value={responseName(guest)}
+                              onChange={(event) => updateGuestName(guest, event.target.value)}
+                              helperText="Please replace Guest with their name if you know it."
+                            />
+                          ) : (
+                            <Typography variant="h6">{responseName(guest)}</Typography>
+                          )}
+                        </Box>
                         <ToggleButtonGroup
                           exclusive
                           color="primary"
                           value={responses[guest.id]?.wedding ?? 'yes'}
                           onChange={(_, value) => updateResponse(guest, 'wedding', value)}
-                          aria-label={`${guest.name} wedding RSVP`}
+                          aria-label={`${responseName(guest)} wedding RSVP`}
                         >
                           <ToggleButton value="yes">Attending</ToggleButton>
                           <ToggleButton value="no">Not attending</ToggleButton>
@@ -1004,13 +1038,13 @@ function RsvpForm() {
                   >
                     <Paper variant="outlined" className="guest-response-row" sx={{ p: 2 }}>
                       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
-                        <Typography variant="h6">{guest.name}</Typography>
+                        <Typography variant="h6">{responseName(guest)}</Typography>
                         <ToggleButtonGroup
                           exclusive
                           color="primary"
                           value={responses[guest.id]?.welcomeEvent ?? 'yes'}
                           onChange={(_, value) => updateResponse(guest, 'welcomeEvent', value)}
-                          aria-label={`${guest.name} welcome event RSVP`}
+                          aria-label={`${responseName(guest)} welcome event RSVP`}
                         >
                           <ToggleButton value="yes">Attending</ToggleButton>
                           <ToggleButton value="no">Not attending</ToggleButton>

@@ -8,6 +8,7 @@ const confirmationReplyTo = 'rsvp@nicoleandbrandt.com';
 
 type Attendance = 'yes' | 'no';
 type RsvpResponse = {
+  guestId?: string;
   name: string;
   wedding: Attendance;
   welcomeEvent: Attendance;
