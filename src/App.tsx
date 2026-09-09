@@ -229,6 +229,23 @@ function authErrorMessage(error: unknown) {
   return 'Google sign-in failed.';
 }
 
+function rsvpErrorMessage(error: unknown) {
+  const code = typeof error === 'object' && error && 'code' in error
+    ? String((error as { code: unknown }).code)
+    : '';
+
+  if (code === 'permission-denied') {
+    return 'We could not save your RSVP because the RSVP service rejected it. Your response has not been saved. Please contact Nicole and Brandt so we can help.';
+  }
+  if (code === 'unavailable' || code === 'deadline-exceeded') {
+    return 'We could not reach the RSVP service. Your response has not been saved. Check your connection and try again.';
+  }
+  if (code === 'failed-precondition') {
+    return 'The RSVP service needs attention before it can save your response. Your response has not been saved. Please contact Nicole and Brandt so we can help.';
+  }
+  return 'We could not save your RSVP. Your response has not been saved. Please try again, and contact Nicole and Brandt if it still does not work.';
+}
+
 function App() {
   const location = useLocation();
 
@@ -697,6 +714,7 @@ function RsvpForm() {
   const [responses, setResponses] = useState<GuestResponse>({});
   const [existingRsvpId, setExistingRsvpId] = useState('');
   const [nameSearchNeedsEmail, setNameSearchNeedsEmail] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const message = firebaseMessage();
 
   const hasExistingRsvp = async (invitationId: string) => {
@@ -836,6 +854,7 @@ function RsvpForm() {
     event.preventDefault();
     if (!invitation) return;
     setStatus('saving');
+    setSubmitError('');
     try {
       if (!db) throw new Error('Firebase is not configured.');
       const batch = writeBatch(db);
@@ -856,7 +875,8 @@ function RsvpForm() {
       await batch.commit();
       setExistingRsvpId(invitation.id);
       setStatus('saved');
-    } catch {
+    } catch (caught) {
+      setSubmitError(rsvpErrorMessage(caught));
       setStatus('error');
     }
   };
@@ -970,8 +990,6 @@ function RsvpForm() {
         {nameSearchNeedsEmail && <Alert severity="info">This invitation already has an RSVP. To make changes, use the update link in the confirmation email, or enter the RSVP contact email above.</Alert>}
         {searchStatus === 'loaded' && !invitation && lookupMatches.length === 0 && !nameSearchNeedsEmail && <Alert severity="warning">No invitation found. Try a first or last name exactly as it appears on the invitation.</Alert>}
         {searchStatus === 'error' && <Alert severity="error">Unable to search invitations right now.</Alert>}
-        {status === 'saved' && <Alert severity="success">You're all set. A confirmation email with an update link will be sent to the contact email.</Alert>}
-        {status === 'error' && <Alert severity="error">Unable to submit right now. Check Firebase configuration.</Alert>}
         {invitation && (
           <Box component="form" onSubmit={submit}>
             <Stack spacing={3}>
@@ -1080,7 +1098,7 @@ function RsvpForm() {
               </Stack>
 
               {status === 'saved' && <Alert severity="success">You're all set. A confirmation email with an update link will be sent to the contact email.</Alert>}
-              {status === 'error' && <Alert severity="error">Unable to submit right now. Check Firebase configuration.</Alert>}
+              {status === 'error' && <Alert severity="error">{submitError}</Alert>}
 
               <Button type="submit" variant="contained" size="large" disabled={status === 'saving'} endIcon={<SendIcon />}>
                 {status === 'saving' ? 'Submitting' : existingRsvpId ? 'Update RSVP' : 'Submit RSVP'}
