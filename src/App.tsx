@@ -2132,13 +2132,6 @@ function InvitationAdminTable({
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState('');
 
-  const formatAddress = (address: InvitationAdminRecord['address']) => {
-    if (!address) return '';
-    return [address.line1, address.line2, [address.city, address.state, address.zip].filter(Boolean).join(', ')]
-      .filter(Boolean)
-      .join('\n');
-  };
-
   const startEditing = (row: InvitationAdminRecord) => {
     setEditing({
       id: row.id,
@@ -2256,9 +2249,7 @@ function InvitationAdminTable({
             <TableRow>
               <TableCell>Invitation</TableCell>
               <TableCell>Guests</TableCell>
-              <TableCell>Address</TableCell>
               <TableCell>Counts</TableCell>
-              <TableCell>Notes</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -2281,9 +2272,6 @@ function InvitationAdminTable({
                     ))}
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ whiteSpace: 'pre-line', minWidth: 220 }}>
-                  {formatAddress(row.address)}
-                </TableCell>
                 <TableCell sx={{ minWidth: 150 }}>
                   <Stack spacing={0.5}>
                     <Typography variant="caption">Guests: {row.guests?.length ?? 0}</Typography>
@@ -2291,7 +2279,6 @@ function InvitationAdminTable({
                     <Typography variant="caption">Plus ones: {row.counts?.potentialPlusOnes ?? '-'}</Typography>
                   </Stack>
                 </TableCell>
-                <TableCell sx={{ minWidth: 220 }}>{row.notes}</TableCell>
                 <TableCell><Button size="small" onClick={() => startEditing(row)}>Edit</Button></TableCell>
               </TableRow>
             ))}

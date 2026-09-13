@@ -41,6 +41,7 @@ export const wedding: {
     { q: 'What should I wear?', a: 'Formal.' },
     { q: 'Can I bring a plus one?', a: 'Please check your invitation. If a guest is listed, include them when submitting your RSVP.' },
     { q: 'Are kids invited?', a: 'Yes. Kids are welcome to celebrate with us.' },
+    { q: 'Welcome Event', a: 'Come as you are.' },
     {
       q: 'Where should I stay?',
       a: 'We have shared a few recommended Alpharetta-area hotels on our Travel page. Please book directly with the hotel; any room-block or transportation updates will be shared there.',
