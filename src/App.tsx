@@ -42,9 +42,11 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   startAt,
   endAt,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import {
@@ -107,6 +109,22 @@ type RsvpRecord = {
   contactEmail: string;
   contactPhone?: string;
   responses: RsvpResponse[];
+  updatedAt?: unknown;
+};
+type InvitationEditor = {
+  id: string;
+  partyName: string;
+  guests: InvitationGuest[];
+};
+type RsvpEditor = {
+  id: string;
+  invitationId: string;
+  invitationName: string;
+  contactEmail: string;
+  contactPhone: string;
+  responses: RsvpResponse[];
+  originalEmail: string;
+  originalUpdatedAt?: unknown;
 };
 type GuestbookRecord = GuestRecord & {
   name?: string;
@@ -187,6 +205,50 @@ function isSearchableGuestName(name: string) {
 
 function isGuestPlaceholder(name: string) {
   return name.toLowerCase().includes('guest');
+}
+
+function cleanGuestName(name: string) {
+  return name.replace(/\s+/g, ' ').trim();
+}
+
+function lookupMatchesFromData(data: Record<string, unknown>) {
+  const matches = Array.isArray(data.matches) ? data.matches : [];
+  const validMatches = matches.flatMap((match) => {
+    if (!match || typeof match !== 'object') return [];
+    const candidate = match as Record<string, unknown>;
+    if (typeof candidate.invitationId !== 'string' || typeof candidate.guestName !== 'string' || typeof candidate.partyName !== 'string') return [];
+    return [{ invitationId: candidate.invitationId, guestName: candidate.guestName, partyName: candidate.partyName }];
+  });
+  if (validMatches.length > 0) return validMatches;
+  if (typeof data.invitationId !== 'string' || typeof data.guestName !== 'string' || typeof data.partyName !== 'string') return [];
+  return [{ invitationId: data.invitationId, guestName: data.guestName, partyName: data.partyName }];
+}
+
+function nextGuestId(guests: InvitationGuest[]) {
+  const existingIds = new Set(guests.map((guest) => guest.id));
+  let suffix = 1;
+  while (existingIds.has(`guest-${suffix}`)) suffix += 1;
+  return `guest-${suffix}`;
+}
+
+function hasSameTimestamp(left: unknown, right: unknown) {
+  const leftMillis = left && typeof left === 'object' && 'toMillis' in left && typeof left.toMillis === 'function'
+    ? left.toMillis()
+    : undefined;
+  const rightMillis = right && typeof right === 'object' && 'toMillis' in right && typeof right.toMillis === 'function'
+    ? right.toMillis()
+    : undefined;
+  return leftMillis === rightMillis;
+}
+
+type FirestoreBatchAction = (batch: ReturnType<typeof writeBatch>) => void;
+
+async function commitAdminBatch(actions: FirestoreBatchAction[]) {
+  if (!db) throw new Error('Firebase is not configured.');
+  if (actions.length > 450) throw new Error('This change affects too many records to save safely. Please contact support.');
+  const batch = writeBatch(db);
+  actions.forEach((action) => action(batch));
+  await batch.commit();
 }
 
 function uniqueMatches(matches: LookupMatch[]) {
@@ -1472,6 +1534,230 @@ function AdminPage() {
     }
   };
 
+  const saveInvitation = async (draft: InvitationEditor) => {
+    if (!db) throw new Error('Firebase is not configured.');
+    const firestore = db;
+    const guests = draft.guests
+      .map((guest) => ({ ...guest, name: cleanGuestName(guest.name) }))
+      .filter((guest) => Boolean(guest.name));
+    if (guests.length === 0) throw new Error('Add at least one guest name.');
+    if (new Set(guests.map((guest) => guest.id)).size !== guests.length) throw new Error('Each guest needs a unique invitation slot.');
+
+    const partyName = cleanGuestName(draft.partyName) || guests.map((guest) => guest.name).join(', ');
+    const [lookupSnapshot, nameSearchSnapshot] = await Promise.all([
+      getDocs(collection(firestore, 'inviteLookups')),
+      getDocs(query(collection(firestore, 'inviteNameSearch'), where('invitationId', '==', draft.id))),
+    ]);
+    const lookupDocuments = new Map(lookupSnapshot.docs.map((document) => [document.id, document]));
+    const lookupMatchesByName = new Map(lookupSnapshot.docs.map((document) => [
+      document.id,
+      lookupMatchesFromData(document.data() as Record<string, unknown>),
+    ]));
+    const nextMatchesByName = new Map<string, LookupMatch[]>();
+
+    lookupMatchesByName.forEach((matches, normalizedName) => {
+      if (!matches.some((match) => match.invitationId === draft.id)) return;
+      nextMatchesByName.set(normalizedName, matches.filter((match) => match.invitationId !== draft.id));
+    });
+    guests.forEach((guest) => {
+      if (!isSearchableGuestName(guest.name)) return;
+      const normalizedName = normalizeName(guest.name);
+      if (!normalizedName) return;
+      nextMatchesByName.set(normalizedName, [
+        ...(nextMatchesByName.get(normalizedName) ?? lookupMatchesByName.get(normalizedName) ?? []),
+        { invitationId: draft.id, guestName: guest.name, partyName },
+      ]);
+    });
+
+    const nextNameSearch = new Map<string, LookupMatch & { searchKey: string }>();
+    guests.forEach((guest) => {
+      if (!isSearchableGuestName(guest.name)) return;
+      const normalizedName = normalizeName(guest.name);
+      if (!normalizedName) return;
+      searchKeysForName(guest.name).forEach((searchKey) => {
+        nextNameSearch.set(`${searchKey}__${draft.id}__${normalizedName}`, {
+          invitationId: draft.id,
+          guestName: guest.name,
+          partyName,
+          searchKey,
+        });
+      });
+    });
+
+    const existingNameSearch = new Map(nameSearchSnapshot.docs.map((document) => [document.id, document]));
+    const actions: FirestoreBatchAction[] = [
+      (batch) => batch.update(doc(firestore, 'invitations', draft.id), { partyName, guests, updatedAt: serverTimestamp() }),
+    ];
+
+    nextMatchesByName.forEach((matches, normalizedName) => {
+      const nextMatches = uniqueMatches(matches).sort((left, right) => (
+        left.invitationId.localeCompare(right.invitationId) || left.guestName.localeCompare(right.guestName)
+      ));
+      const existing = lookupDocuments.get(normalizedName);
+      const lookupRef = doc(firestore, 'inviteLookups', normalizedName);
+      if (nextMatches.length === 0) {
+        if (existing) actions.push((batch) => batch.delete(lookupRef));
+        return;
+      }
+      const [onlyMatch] = nextMatches;
+      const payload = {
+        invitationId: nextMatches.length === 1 ? onlyMatch.invitationId : null,
+        guestName: nextMatches.length === 1 ? onlyMatch.guestName : null,
+        partyName: nextMatches.length === 1 ? onlyMatch.partyName : null,
+        matches: nextMatches,
+        updatedAt: serverTimestamp(),
+      };
+      if (existing) {
+        actions.push((batch) => batch.set(lookupRef, payload, { merge: true }));
+      } else {
+        actions.push((batch) => batch.set(lookupRef, { ...payload, createdAt: serverTimestamp() }));
+      }
+    });
+
+    existingNameSearch.forEach((document, id) => {
+      if (!nextNameSearch.has(id)) actions.push((batch) => batch.delete(document.ref));
+    });
+    nextNameSearch.forEach((record, id) => {
+      const existing = existingNameSearch.get(id);
+      const nameSearchRef = doc(firestore, 'inviteNameSearch', id);
+      if (existing) {
+        actions.push((batch) => batch.set(nameSearchRef, { ...record, updatedAt: serverTimestamp() }, { merge: true }));
+      } else {
+        actions.push((batch) => batch.set(nameSearchRef, { ...record, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+      }
+    });
+
+    await commitAdminBatch(actions);
+
+  };
+
+  const deleteInvitation = async (invitationId: string) => {
+    if (!db) throw new Error('Firebase is not configured.');
+    const firestore = db;
+    const [lookupSnapshot, nameSearchSnapshot, emailLookupSnapshot] = await Promise.all([
+      getDocs(collection(firestore, 'inviteLookups')),
+      getDocs(query(collection(firestore, 'inviteNameSearch'), where('invitationId', '==', invitationId))),
+      getDocs(query(collection(firestore, 'rsvpEmailLookups'), where('invitationId', '==', invitationId))),
+    ]);
+    const actions: FirestoreBatchAction[] = [
+      (batch) => batch.delete(doc(firestore, 'invitations', invitationId)),
+      (batch) => batch.delete(doc(firestore, 'rsvps', invitationId)),
+      ...nameSearchSnapshot.docs.map((document) => (batch: ReturnType<typeof writeBatch>) => batch.delete(document.ref)),
+      ...emailLookupSnapshot.docs.map((document) => (batch: ReturnType<typeof writeBatch>) => batch.delete(document.ref)),
+    ];
+
+    lookupSnapshot.docs.forEach((document) => {
+      const currentMatches = lookupMatchesFromData(document.data() as Record<string, unknown>);
+      const nextMatches = currentMatches.filter((match) => match.invitationId !== invitationId);
+      if (nextMatches.length === currentMatches.length) return;
+      if (nextMatches.length === 0) {
+        actions.push((batch) => batch.delete(document.ref));
+        return;
+      }
+      const [onlyMatch] = nextMatches;
+      actions.push((batch) => batch.set(document.ref, {
+        invitationId: nextMatches.length === 1 ? onlyMatch.invitationId : null,
+        guestName: nextMatches.length === 1 ? onlyMatch.guestName : null,
+        partyName: nextMatches.length === 1 ? onlyMatch.partyName : null,
+        matches: nextMatches,
+        updatedAt: serverTimestamp(),
+      }, { merge: true }));
+    });
+
+    await commitAdminBatch(actions);
+
+    const [freshLookupSnapshot, freshNameSearchSnapshot, freshEmailLookupSnapshot] = await Promise.all([
+      getDocs(collection(firestore, 'inviteLookups')),
+      getDocs(query(collection(firestore, 'inviteNameSearch'), where('invitationId', '==', invitationId))),
+      getDocs(query(collection(firestore, 'rsvpEmailLookups'), where('invitationId', '==', invitationId))),
+    ]);
+    const cleanupActions: FirestoreBatchAction[] = [
+      ...freshNameSearchSnapshot.docs.map((document) => (batch: ReturnType<typeof writeBatch>) => batch.delete(document.ref)),
+      ...freshEmailLookupSnapshot.docs.map((document) => (batch: ReturnType<typeof writeBatch>) => batch.delete(document.ref)),
+    ];
+    freshLookupSnapshot.docs.forEach((document) => {
+      const currentMatches = lookupMatchesFromData(document.data() as Record<string, unknown>);
+      const nextMatches = currentMatches.filter((match) => match.invitationId !== invitationId);
+      if (nextMatches.length === currentMatches.length) return;
+      if (nextMatches.length === 0) {
+        cleanupActions.push((batch) => batch.delete(document.ref));
+        return;
+      }
+      const [onlyMatch] = nextMatches;
+      cleanupActions.push((batch) => batch.set(document.ref, {
+        invitationId: nextMatches.length === 1 ? onlyMatch.invitationId : null,
+        guestName: nextMatches.length === 1 ? onlyMatch.guestName : null,
+        partyName: nextMatches.length === 1 ? onlyMatch.partyName : null,
+        matches: nextMatches,
+        updatedAt: serverTimestamp(),
+      }, { merge: true }));
+    });
+    await commitAdminBatch(cleanupActions);
+  };
+
+  const saveRsvp = async (draft: RsvpEditor) => {
+    if (!db) throw new Error('Firebase is not configured.');
+    const firestore = db;
+    const contactEmail = normalizeEmail(draft.contactEmail);
+    if (!contactEmail) throw new Error('A confirmation email is required.');
+    const responses = draft.responses.map((response) => {
+      const name = cleanGuestName(response.name);
+      if (!name) throw new Error('Each RSVP response needs a guest name.');
+      return { ...response, name };
+    });
+    if (responses.length === 0) throw new Error('Add at least one RSVP response.');
+
+    const rsvpRef = doc(firestore, 'rsvps', draft.id);
+    const emailLookupRef = doc(firestore, 'rsvpEmailLookups', contactEmail);
+    const originalEmail = normalizeEmail(draft.originalEmail);
+    const originalEmailLookupRef = doc(firestore, 'rsvpEmailLookups', originalEmail);
+    await runTransaction(firestore, async (transaction) => {
+      const [currentRsvp, currentEmailLookup, originalEmailLookup] = await Promise.all([
+        transaction.get(rsvpRef),
+        transaction.get(emailLookupRef),
+        transaction.get(originalEmailLookupRef),
+      ]);
+      if (!currentRsvp.exists()) throw new Error('This RSVP was deleted. Reload the list before making changes.');
+      const currentData = currentRsvp.data();
+      if (normalizeEmail(String(currentData.contactEmail ?? '')) !== originalEmail || !hasSameTimestamp(draft.originalUpdatedAt, currentData.updatedAt)) {
+        throw new Error('This RSVP changed in another window. Reload the list before making changes.');
+      }
+      if (currentEmailLookup.exists() && String(currentEmailLookup.data().invitationId ?? '') !== draft.id) {
+        throw new Error('That email address is already linked to another RSVP.');
+      }
+      transaction.set(rsvpRef, {
+        invitationId: draft.id,
+        invitationName: cleanGuestName(draft.invitationName) || draft.id,
+        contactEmail,
+        contactPhone: cleanGuestName(draft.contactPhone),
+        responses,
+        createdAt: currentData.createdAt ?? serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      if (originalEmail !== contactEmail && originalEmailLookup.exists() && String(originalEmailLookup.data().invitationId ?? '') === draft.id) {
+        transaction.delete(originalEmailLookupRef);
+      }
+      transaction.set(emailLookupRef, {
+        invitationId: draft.id,
+        contactEmail,
+        updatedAt: serverTimestamp(),
+      });
+    });
+  };
+
+  const deleteRsvp = async (rsvpId: string) => {
+    if (!db) throw new Error('Firebase is not configured.');
+    const firestore = db;
+    const emailLookupSnapshot = await getDocs(query(
+      collection(firestore, 'rsvpEmailLookups'),
+      where('invitationId', '==', rsvpId),
+    ));
+    await commitAdminBatch([
+      (batch) => batch.delete(doc(firestore, 'rsvps', rsvpId)),
+      ...emailLookupSnapshot.docs.map((document) => (batch: ReturnType<typeof writeBatch>) => batch.delete(document.ref)),
+    ]);
+  };
+
   return (
     <>
       <PageHeader title="Admin" eyebrow="Private dashboard">
@@ -1558,8 +1844,22 @@ function AdminPage() {
                     </Stack>
                     {loadStatus === 'loading' && <Alert severity="info">Loading {collectionLabel}...</Alert>}
                     {loadStatus === 'loaded' && rows.length === 0 && <Alert severity="info">No {collectionLabel} records found.</Alert>}
-                    {rows.length > 0 && activeCollection === 'invitations' && <InvitationAdminTable rows={rows as InvitationAdminRecord[]} />}
-                    {rows.length > 0 && activeCollection === 'rsvps' && <RsvpAdminTable rows={rows as RsvpRecord[]} />}
+                    {rows.length > 0 && activeCollection === 'invitations' && (
+                      <InvitationAdminTable
+                        rows={rows as InvitationAdminRecord[]}
+                        onSave={saveInvitation}
+                        onDelete={deleteInvitation}
+                        onChanged={() => { void load('invitations'); }}
+                      />
+                    )}
+                    {rows.length > 0 && activeCollection === 'rsvps' && (
+                      <RsvpAdminTable
+                        rows={rows as RsvpRecord[]}
+                        onSave={saveRsvp}
+                        onDelete={deleteRsvp}
+                        onChanged={() => { void load('rsvps'); }}
+                      />
+                    )}
                     {rows.length > 0 && activeCollection === 'guestbook' && <GuestbookAdminTable rows={rows as GuestbookRecord[]} />}
                   </>
                 )}
@@ -1572,68 +1872,217 @@ function AdminPage() {
   );
 }
 
-function RsvpAdminTable({ rows }: { rows: RsvpRecord[] }) {
+function RsvpAdminTable({
+  rows,
+  onSave,
+  onDelete,
+  onChanged,
+}: {
+  rows: RsvpRecord[];
+  onSave: (draft: RsvpEditor) => Promise<void>;
+  onDelete: (rsvpId: string) => Promise<void>;
+  onChanged: () => void;
+}) {
+  const [editing, setEditing] = useState<RsvpEditor | null>(null);
+  const [status, setStatus] = useState<Status>('idle');
+  const [error, setError] = useState('');
+
   const responseLabel = (response: RsvpResponse) => {
     const wedding = response.wedding === 'yes' ? 'Wedding yes' : 'Wedding no';
     const welcome = response.welcomeEvent === 'yes' ? 'Welcome yes' : 'Welcome no';
     return `${response.name} - ${wedding} / ${welcome}`;
   };
 
-  return (
-    <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 620 }}>
-      <Table size="small" stickyHeader>
-        <TableHead>
-          <TableRow>
-            <TableCell>Invitation</TableCell>
-            <TableCell>Contact</TableCell>
-            <TableCell>Responses</TableCell>
-            <TableCell>Totals</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => {
-            const weddingYes = (row.responses ?? []).filter((response) => response.wedding === 'yes').length;
-            const welcomeYes = (row.responses ?? []).filter((response) => response.welcomeEvent === 'yes').length;
+  const startEditing = (row: RsvpRecord) => {
+    setEditing({
+      id: row.id,
+      invitationId: row.invitationId || row.id,
+      invitationName: row.invitationName || row.id,
+      contactEmail: row.contactEmail ?? '',
+      contactPhone: row.contactPhone ?? '',
+      responses: (row.responses ?? []).map((response) => ({ ...response })),
+      originalEmail: row.contactEmail ?? '',
+      originalUpdatedAt: row.updatedAt,
+    });
+    setStatus('idle');
+    setError('');
+  };
 
-            return (
-              <TableRow key={row.id} hover sx={{ verticalAlign: 'top' }}>
-                <TableCell sx={{ minWidth: 200 }}>
-                  <Stack spacing={0.5}>
-                    <Typography sx={{ fontWeight: 800 }}>{row.invitationName || row.id}</Typography>
-                    <Typography variant="caption" color="text.secondary">{row.invitationId || row.id}</Typography>
+  const updateResponse = (index: number, update: Partial<RsvpResponse>) => {
+    setEditing((current) => current && {
+      ...current,
+      responses: current.responses.map((response, responseIndex) => (
+        responseIndex === index ? { ...response, ...update } : response
+      )),
+    });
+  };
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editing) return;
+    setStatus('saving');
+    setError('');
+    try {
+      await onSave(editing);
+      setEditing(null);
+      setStatus('saved');
+      onChanged();
+    } catch (caught) {
+      setStatus('error');
+      setError(caught instanceof Error ? caught.message : 'Unable to save this RSVP.');
+    }
+  };
+
+  const remove = async () => {
+    if (!editing || !window.confirm('Delete this RSVP? The invitation will remain, and the guest can submit a new RSVP.')) return;
+    setStatus('saving');
+    setError('');
+    try {
+      await onDelete(editing.id);
+      setEditing(null);
+      setStatus('saved');
+      onChanged();
+    } catch (caught) {
+      setStatus('error');
+      setError(caught instanceof Error ? caught.message : 'Unable to delete this RSVP.');
+    }
+  };
+
+  return (
+    <Stack spacing={2}>
+      {status === 'saved' && <Alert severity="success">RSVP updated.</Alert>}
+      {status === 'error' && <Alert severity="error">{error}</Alert>}
+      {editing && (
+        <Paper component="form" variant="outlined" onSubmit={save} sx={{ p: 2.5 }}>
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
+              <Box>
+                <Typography variant="h6">Edit RSVP</Typography>
+                <Typography variant="body2" color="text.secondary">{editing.invitationName}</Typography>
+              </Box>
+              <Button type="button" variant="text" onClick={() => setEditing(null)}>Cancel</Button>
+            </Stack>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  required
+                  fullWidth
+                  type="email"
+                  label="Confirmation email"
+                  value={editing.contactEmail}
+                  onChange={(event) => setEditing({ ...editing, contactEmail: event.target.value })}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Phone"
+                  value={editing.contactPhone}
+                  onChange={(event) => setEditing({ ...editing, contactPhone: event.target.value })}
+                />
+              </Grid>
+            </Grid>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Guest responses</Typography>
+            {editing.responses.map((response, index) => (
+              <Paper key={`${response.guestId ?? response.name}-${index}`} variant="outlined" sx={{ p: 2 }}>
+                <Stack spacing={1.5}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="Guest name"
+                    value={response.name}
+                    onChange={(event) => updateResponse(index, { name: event.target.value })}
+                  />
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                    <ToggleButtonGroup
+                      exclusive
+                      color="primary"
+                      value={response.wedding}
+                      onChange={(_, value: Attendance | null) => value && updateResponse(index, { wedding: value })}
+                      aria-label={`${response.name} wedding RSVP`}
+                    >
+                      <ToggleButton value="yes">Wedding: attending</ToggleButton>
+                      <ToggleButton value="no">Wedding: not attending</ToggleButton>
+                    </ToggleButtonGroup>
+                    <ToggleButtonGroup
+                      exclusive
+                      color="primary"
+                      value={response.welcomeEvent}
+                      onChange={(_, value: Attendance | null) => value && updateResponse(index, { welcomeEvent: value })}
+                      aria-label={`${response.name} welcome event RSVP`}
+                    >
+                      <ToggleButton value="yes">Welcome: attending</ToggleButton>
+                      <ToggleButton value="no">Welcome: not attending</ToggleButton>
+                    </ToggleButtonGroup>
                   </Stack>
-                </TableCell>
-                <TableCell sx={{ minWidth: 220 }}>
-                  <Stack spacing={0.5}>
-                    <Typography>{row.contactEmail}</Typography>
-                    {row.contactPhone && <Typography color="text.secondary">{row.contactPhone}</Typography>}
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ minWidth: 360 }}>
-                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
-                    {(row.responses ?? []).map((response) => (
-                      <Chip
-                        key={`${row.id}-${response.name}`}
-                        label={responseLabel(response)}
-                        size="small"
-                        color={response.wedding === 'yes' ? 'success' : 'default'}
-                        variant={response.welcomeEvent === 'yes' ? 'filled' : 'outlined'}
-                      />
-                    ))}
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ minWidth: 150 }}>
-                  <Stack spacing={0.5}>
-                    <Typography variant="caption">Wedding: {weddingYes}/{row.responses?.length ?? 0}</Typography>
-                    <Typography variant="caption">Welcome: {welcomeYes}/{row.responses?.length ?? 0}</Typography>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </TableContainer>
+                </Stack>
+              </Paper>
+            ))}
+            <Alert severity="info">Saving sends an updated RSVP confirmation to this email address.</Alert>
+            <Stack direction={{ xs: 'column-reverse', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between' }}>
+              <Button type="button" color="error" onClick={() => { void remove(); }} disabled={status === 'saving'}>Delete RSVP</Button>
+              <Button type="submit" variant="contained" disabled={status === 'saving'}>{status === 'saving' ? 'Saving' : 'Save RSVP'}</Button>
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
+      <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 620 }}>
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell>Invitation</TableCell>
+              <TableCell>Contact</TableCell>
+              <TableCell>Responses</TableCell>
+              <TableCell>Totals</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((row) => {
+              const weddingYes = (row.responses ?? []).filter((response) => response.wedding === 'yes').length;
+              const welcomeYes = (row.responses ?? []).filter((response) => response.welcomeEvent === 'yes').length;
+
+              return (
+                <TableRow key={row.id} hover sx={{ verticalAlign: 'top' }}>
+                  <TableCell sx={{ minWidth: 200 }}>
+                    <Stack spacing={0.5}>
+                      <Typography sx={{ fontWeight: 800 }}>{row.invitationName || row.id}</Typography>
+                      <Typography variant="caption" color="text.secondary">{row.invitationId || row.id}</Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ minWidth: 220 }}>
+                    <Stack spacing={0.5}>
+                      <Typography>{row.contactEmail}</Typography>
+                      {row.contactPhone && <Typography color="text.secondary">{row.contactPhone}</Typography>}
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ minWidth: 360 }}>
+                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
+                      {(row.responses ?? []).map((response, index) => (
+                        <Chip
+                          key={`${row.id}-${response.guestId ?? response.name}-${index}`}
+                          label={responseLabel(response)}
+                          size="small"
+                          color={response.wedding === 'yes' ? 'success' : 'default'}
+                          variant={response.welcomeEvent === 'yes' ? 'filled' : 'outlined'}
+                        />
+                      ))}
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ minWidth: 150 }}>
+                    <Stack spacing={0.5}>
+                      <Typography variant="caption">Wedding: {weddingYes}/{row.responses?.length ?? 0}</Typography>
+                      <Typography variant="caption">Welcome: {welcomeYes}/{row.responses?.length ?? 0}</Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell><Button size="small" onClick={() => startEditing(row)}>Edit</Button></TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Stack>
   );
 }
 
@@ -1668,7 +2117,21 @@ function GuestbookAdminTable({ rows }: { rows: GuestbookRecord[] }) {
   );
 }
 
-function InvitationAdminTable({ rows }: { rows: InvitationAdminRecord[] }) {
+function InvitationAdminTable({
+  rows,
+  onSave,
+  onDelete,
+  onChanged,
+}: {
+  rows: InvitationAdminRecord[];
+  onSave: (draft: InvitationEditor) => Promise<void>;
+  onDelete: (invitationId: string) => Promise<void>;
+  onChanged: () => void;
+}) {
+  const [editing, setEditing] = useState<InvitationEditor | null>(null);
+  const [status, setStatus] = useState<Status>('idle');
+  const [error, setError] = useState('');
+
   const formatAddress = (address: InvitationAdminRecord['address']) => {
     if (!address) return '';
     return [address.line1, address.line2, [address.city, address.state, address.zip].filter(Boolean).join(', ')]
@@ -1676,53 +2139,166 @@ function InvitationAdminTable({ rows }: { rows: InvitationAdminRecord[] }) {
       .join('\n');
   };
 
+  const startEditing = (row: InvitationAdminRecord) => {
+    setEditing({
+      id: row.id,
+      partyName: row.partyName ?? row.envelopeName ?? '',
+      guests: (row.guests ?? []).map((guest) => ({ ...guest })),
+    });
+    setStatus('idle');
+    setError('');
+  };
+
+  const updateGuest = (id: string, name: string) => {
+    setEditing((current) => current && {
+      ...current,
+      guests: current.guests.map((guest) => (guest.id === id ? { ...guest, name } : guest)),
+    });
+  };
+
+  const addGuest = () => {
+    setEditing((current) => current && {
+      ...current,
+      guests: [...current.guests, { id: nextGuestId(current.guests), name: '' }],
+    });
+  };
+
+  const removeGuest = (id: string) => {
+    setEditing((current) => current && {
+      ...current,
+      guests: current.guests.filter((guest) => guest.id !== id),
+    });
+  };
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editing) return;
+    setStatus('saving');
+    setError('');
+    try {
+      await onSave(editing);
+      setEditing(null);
+      setStatus('saved');
+      onChanged();
+    } catch (caught) {
+      setStatus('error');
+      setError(caught instanceof Error ? caught.message : 'Unable to save this invitation.');
+    }
+  };
+
+  const remove = async () => {
+    if (!editing || !window.confirm('Delete this invitation and its RSVP? This cannot be undone.')) return;
+    setStatus('saving');
+    setError('');
+    try {
+      await onDelete(editing.id);
+      setEditing(null);
+      setStatus('saved');
+      onChanged();
+    } catch (caught) {
+      setStatus('error');
+      setError(caught instanceof Error ? caught.message : 'Unable to delete this invitation.');
+    }
+  };
+
   return (
-    <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 620 }}>
-      <Table size="small" stickyHeader>
-        <TableHead>
-          <TableRow>
-            <TableCell>Invitation</TableCell>
-            <TableCell>Guests</TableCell>
-            <TableCell>Address</TableCell>
-            <TableCell>Counts</TableCell>
-            <TableCell>Notes</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id} hover sx={{ verticalAlign: 'top' }}>
-              <TableCell sx={{ minWidth: 190 }}>
-                <Stack spacing={0.5}>
-                  <Typography sx={{ fontWeight: 800 }}>{row.partyName || row.envelopeName || row.id}</Typography>
-                  {row.envelopeName && row.envelopeName !== row.partyName && (
-                    <Typography variant="caption" color="text.secondary">{row.envelopeName}</Typography>
-                  )}
-                  <Typography variant="caption" color="text.secondary">{row.id}</Typography>
+    <Stack spacing={2}>
+      {status === 'saved' && <Alert severity="success">Invitation and name search updated.</Alert>}
+      {status === 'error' && <Alert severity="error">{error}</Alert>}
+      {editing && (
+        <Paper component="form" variant="outlined" onSubmit={save} sx={{ p: 2.5 }}>
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
+              <Typography variant="h6">Edit invitation</Typography>
+              <Button type="button" variant="text" onClick={() => setEditing(null)}>Cancel</Button>
+            </Stack>
+            <TextField
+              fullWidth
+              label="Invitation name"
+              value={editing.partyName}
+              onChange={(event) => setEditing({ ...editing, partyName: event.target.value })}
+              helperText="Leave blank to use the invited guests' names."
+            />
+            <Stack spacing={1.5}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Invited guests</Typography>
+              {editing.guests.map((guest, index) => (
+                <Stack key={guest.id} direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+                  <TextField
+                    required
+                    fullWidth
+                    label={`Guest ${index + 1}`}
+                    value={guest.name}
+                    onChange={(event) => updateGuest(guest.id, event.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    color="error"
+                    onClick={() => removeGuest(guest.id)}
+                    disabled={editing.guests.length === 1}
+                  >
+                    Remove
+                  </Button>
                 </Stack>
-              </TableCell>
-              <TableCell sx={{ minWidth: 260 }}>
-                <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
-                  {(row.guests ?? []).map((guest) => (
-                    <Chip key={`${row.id}-${guest.id}`} label={guest.name} size="small" />
-                  ))}
-                </Stack>
-              </TableCell>
-              <TableCell sx={{ whiteSpace: 'pre-line', minWidth: 220 }}>
-                {formatAddress(row.address)}
-              </TableCell>
-              <TableCell sx={{ minWidth: 150 }}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption">Guests: {row.guests?.length ?? 0}</Typography>
-                  <Typography variant="caption">Kids: {row.counts?.kids ?? '-'}</Typography>
-                  <Typography variant="caption">Plus ones: {row.counts?.potentialPlusOnes ?? '-'}</Typography>
-                </Stack>
-              </TableCell>
-              <TableCell sx={{ minWidth: 220 }}>{row.notes}</TableCell>
+              ))}
+              <Button type="button" variant="outlined" onClick={addGuest} sx={{ alignSelf: 'flex-start' }}>Add person</Button>
+            </Stack>
+            <Alert severity="info">Saving immediately updates first- and last-name invitation search for this household.</Alert>
+            <Stack direction={{ xs: 'column-reverse', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between' }}>
+              <Button type="button" color="error" onClick={() => { void remove(); }} disabled={status === 'saving'}>Delete invitation</Button>
+              <Button type="submit" variant="contained" disabled={status === 'saving'}>{status === 'saving' ? 'Saving' : 'Save invitation'}</Button>
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
+      <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 620 }}>
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell>Invitation</TableCell>
+              <TableCell>Guests</TableCell>
+              <TableCell>Address</TableCell>
+              <TableCell>Counts</TableCell>
+              <TableCell>Notes</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+          </TableHead>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.id} hover sx={{ verticalAlign: 'top' }}>
+                <TableCell sx={{ minWidth: 190 }}>
+                  <Stack spacing={0.5}>
+                    <Typography sx={{ fontWeight: 800 }}>{row.partyName || row.envelopeName || row.id}</Typography>
+                    {row.envelopeName && row.envelopeName !== row.partyName && (
+                      <Typography variant="caption" color="text.secondary">{row.envelopeName}</Typography>
+                    )}
+                    <Typography variant="caption" color="text.secondary">{row.id}</Typography>
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ minWidth: 260 }}>
+                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
+                    {(row.guests ?? []).map((guest) => (
+                      <Chip key={`${row.id}-${guest.id}`} label={guest.name} size="small" />
+                    ))}
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'pre-line', minWidth: 220 }}>
+                  {formatAddress(row.address)}
+                </TableCell>
+                <TableCell sx={{ minWidth: 150 }}>
+                  <Stack spacing={0.5}>
+                    <Typography variant="caption">Guests: {row.guests?.length ?? 0}</Typography>
+                    <Typography variant="caption">Kids: {row.counts?.kids ?? '-'}</Typography>
+                    <Typography variant="caption">Plus ones: {row.counts?.potentialPlusOnes ?? '-'}</Typography>
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ minWidth: 220 }}>{row.notes}</TableCell>
+                <TableCell><Button size="small" onClick={() => startEditing(row)}>Edit</Button></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Stack>
   );
 }
 

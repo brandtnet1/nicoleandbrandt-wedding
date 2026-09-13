@@ -26,7 +26,8 @@ service cloud.firestore {
     }
 
     function hasServerCreateTime() {
-      return request.resource.data.createdAt == request.time;
+      return request.resource.data.createdAt == request.time
+        || (resource != null && request.resource.data.createdAt == resource.data.createdAt);
     }
 
     function hasServerUpdateTime() {
@@ -73,13 +74,13 @@ service cloud.firestore {
 
     match /inviteLookups/{name} {
       allow get: if true;
-      allow list: if false;
+      allow list: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
 
     match /inviteNameSearch/{id} {
       allow get: if false;
-      allow list: if request.query.limit <= 12;
+      allow list: if isAdmin() || request.query.limit <= 12;
       allow create, update, delete: if isAdmin();
     }
 
