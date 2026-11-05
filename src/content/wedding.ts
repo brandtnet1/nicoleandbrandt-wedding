@@ -38,7 +38,7 @@ export const wedding: {
     { time: '7:00 PM', title: 'Dancing', detail: 'Music, dessert, and late-night snacks.' },
   ],
   faqs: [
-    { q: 'What should I wear?', a: 'Formal.' },
+    { q: 'What should I wear?', a: 'Cocktail Attire.' },
     { q: 'Can I bring a plus one?', a: 'Please check your invitation. If a guest is listed, include them when submitting your RSVP.' },
     { q: 'Are kids invited?', a: 'Yes. Kids are welcome to celebrate with us.' },
     { q: 'Welcome Event', a: 'Come as you are.' },
