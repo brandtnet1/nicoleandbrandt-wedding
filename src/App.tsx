@@ -1176,10 +1176,21 @@ function RsvpForm() {
 function RegistryPage() {
   return (
     <>
-      <PageHeader title="Honeymoon Fund" eyebrow="Thank you">
-        <Typography variant="h6">Your presence is our greatest gift. If you would like to give, a contribution toward our honeymoon would mean so much to us.</Typography>
+      <PageHeader title="Registry & Honeymoon Fund" eyebrow="Thank you">
+        <Typography variant="h6">
+          Your presence is our greatest gift. If you would like to give, you can contribute to our honeymoon fund or choose a gift from our registry.
+        </Typography>
+        <Button
+          href="https://www.williams-sonoma.com/registry/85s2q8jf66/registry-list.html"
+          target="_blank"
+          rel="noreferrer"
+          variant="outlined"
+          color="inherit"
+        >
+          View our Williams Sonoma registry
+        </Button>
       </PageHeader>
-      <Section title="A gift toward our adventure">
+      <Section title="Honeymoon Fund">
         <Stack spacing={4} sx={{ maxWidth: 1060, mx: 'auto', textAlign: 'center' }}>
           <Typography color="text.secondary" sx={{ maxWidth: 680, mx: 'auto' }}>
             Choose the option that works best for you. Every contribution is sent directly to us, and we are so grateful for your love and support.
