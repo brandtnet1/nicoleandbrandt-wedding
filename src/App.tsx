@@ -27,6 +27,7 @@ import {
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FlightIcon from '@mui/icons-material/Flight';
+import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -1180,21 +1181,36 @@ function RegistryPage() {
         <Typography variant="h6">
           Your presence is our greatest gift. If you would like to give, you can contribute to our honeymoon fund or choose a gift from our registry.
         </Typography>
-        <Button
-          href="https://www.williams-sonoma.com/registry/85s2q8jf66/registry-list.html"
-          target="_blank"
-          rel="noreferrer"
-          variant="outlined"
-          color="inherit"
-        >
-          View our Williams Sonoma registry
-        </Button>
       </PageHeader>
-      <Section title="Honeymoon Fund">
+      <Section title="Ways to Give">
         <Stack spacing={4} sx={{ maxWidth: 1060, mx: 'auto', textAlign: 'center' }}>
-          <Typography color="text.secondary" sx={{ maxWidth: 680, mx: 'auto' }}>
-            Choose the option that works best for you. Every contribution is sent directly to us, and we are so grateful for your love and support.
-          </Typography>
+          <Paper className="lift-card" sx={{ p: { xs: 3, md: 4 } }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} sx={{ alignItems: 'center' }}>
+              <Box sx={{ display: 'grid', placeItems: 'center', flexShrink: 0, width: 64, height: 64, borderRadius: '50%', bgcolor: '#f5e7d0', color: 'primary.main' }}>
+                <CardGiftcardIcon sx={{ fontSize: 30 }} />
+              </Box>
+              <Box sx={{ flex: 1, textAlign: { xs: 'center', md: 'left' } }}>
+                <Typography variant="overline" color="primary">Wedding Registry</Typography>
+                <Typography variant="h3" sx={{ fontSize: { xs: 34, md: 40 }, mb: 0.5 }}>Williams Sonoma</Typography>
+                <Typography color="text.secondary">Browse our registry for gifts we’d love to use in our home.</Typography>
+              </Box>
+              <Button
+                href="https://www.williams-sonoma.com/registry/85s2q8jf66/registry-list.html"
+                target="_blank"
+                rel="noreferrer"
+                variant="contained"
+                size="large"
+              >
+                View our registry
+              </Button>
+            </Stack>
+          </Paper>
+          <Box>
+            <Typography variant="h3" sx={{ fontSize: { xs: 34, md: 40 }, mb: 1 }}>Honeymoon Fund</Typography>
+            <Typography color="text.secondary" sx={{ maxWidth: 680, mx: 'auto' }}>
+              Choose a payment option below to send a contribution directly to us. We’re so grateful for your love and support.
+            </Typography>
+          </Box>
           <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
             {honeymoonContributionOptions.map((option) => (
               <Grid key={option.name} size={{ xs: 12, sm: 6, md: 4 }}>
